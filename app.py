@@ -58,9 +58,9 @@ if submit_button:
         }
         
         # Notion API ga POST so'rovi yuborish
-        response = requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(notion_data))
+        response = requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(notion_data))    
         
-        if response.status_config == 200 or response.status_code == 201:
+        if response.status_code == 200 or response.status_code == 201:
             st.success(f"Muvaffaqiyatli bajarildi! {driver_name} ma'lumotlari markaziy bazaga yuklandi. Seller tez orada bog'lanadi.")
         else:
             st.error(f"Xatolik yuz berdi. Notionga ulanib bo'lmadi: {response.text}")
