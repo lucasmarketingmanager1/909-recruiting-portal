@@ -2,20 +2,57 @@ import streamlit as st
 import requests
 import json
 
-# Sahifa sarlavhasi
+# Sahifa sozlamalari
 st.set_page_config(page_title="909 Recruiting Portal", page_icon="🚚", layout="centered")
 st.title("🚚 909 Recruiting Agency — Driver Entry Portal")
-st.write("Recruiterlar uchun haydovchi ma'lumotlarini kiritish tizimi.")
+st.write("Recruiterlar uchun haydovchi ma'lumotlarini avtomatlashtirilgan kiritish tizimi.")
 
-# Notion API Sozlamalari (Bularni Streamlit Secrets ichiga yashiramiz)
+# Streamlit Secrets ichidan maxfiy kalitlarni oqish
 NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
-DATABASE_ID = st.secrets["DATABASE_ID"]
+MAIN_DATABASE_ID = st.secrets["DATABASE_ID"]
+
+# TEAM LEADS database ID raqamini aniqlash (Main database ID-dan kelib chiqib avtomat topish yoki bitta secretsga yozish mumkin)
+# Bu yerda biz TEAM LEADS database ID-sini ham bitta secrets orqali olamiz
+TEAM_DATABASE_ID = st.secrets.get("TEAM_DATABASE_ID", "")
 
 headers = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
     "Content-Type": "application/json",
     "Notion-Version": "2022-06-28"
 }
+
+# 1. TEAM LEADS jadvalidan faqat "Active" xodimlarning ismlarini avtomat oqib olish funksiyasi
+def get_active_recruiters():
+    if not TEAM_DATABASE_ID:
+        return ["Adam", "Jason", "Martin", "Tom"] # Agar ID kiritilmagan bo'lsa, zaxira ro'yxat
+    
+    url = f"https://api.notion.com/v1/databases/{TEAM_DATABASE_ID}/query"
+    payload = {
+        "filter": {
+            "property": "Status",
+            "status": {"equals": "Active"}
+        }
+    }
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code == 200:
+            results = response.json().get("results", [])
+            recruiters = {}
+            for page in results:
+                name_list = page["properties"]["Name"]["title"]
+                if name_list:
+                    name = name_list[0]["plain_text"]
+                    role = page["properties"]["Role"]["select"]["name"]
+                    if role == "Recruiter":
+                        recruiters[name] = page["id"] # Ism va uning raqamli ID-si saqlanadi
+            return recruiters
+        return {"Adam": "", "Jason": "", "Martin": "", "Tom": ""}
+    except:
+        return {"Adam": "", "Jason": "", "Martin": "", "Tom": ""}
+
+# Jonli xodimlar ro'yxatini yuklash
+recruiter_dict = get_active_recruiters()
+recruiter_options = list(recruiter_dict.keys())
 
 # Forma yaratish
 with st.form("driver_form", clear_on_submit=True):
@@ -27,10 +64,8 @@ with st.form("driver_form", clear_on_submit=True):
     driver_type = st.selectbox("Haydovchi Turi (Driver Type)", 
                                ["Solo ($500-$600)", "Team ($1100-$1200)", "Owner-Operator ($1100-$1200)"])
     
-    recruiter_name = st.selectbox("Sizning Ismingiz (Recruiter Name)", 
-                                  ["Jason", "Adam", "Martin", "Jacob", "Tom", "Stan"])
+    selected_recruiter = st.selectbox("Sizning Ismingiz (Recruiter Name)", recruiter_options)
     
-    # Qo'shimcha OTR ma'lumotlari (Telegram kanalga avtomat chiqadigan shablon uchun)
     st.subheader("OTR / Yuk Ma'lumotlari (Kanal uchun)")
     experience = st.number_input("Tajribasi (Yil hisobida)", min_value=0, max_value=50, value=2)
     weekly_miles = st.text_input("Haftalik mili (Weekly Miles)", value="4000+ miles")
@@ -41,26 +76,31 @@ with st.form("driver_form", clear_on_submit=True):
     
     submit_button = st.form_submit_button(label="Notionga Yuklash 🚀")
 
-# Tugma bosilganda Notion API ga jo'natish logikasi
 if submit_button:
     if not driver_name or not phone_number or not cdl_file:
-        st.error("Iltimos, yulduzcha (*) qo'yilgan barcha majburiy maydonlarni to'ldiring va CDL rasmini yuklang!")
+        st.st.error("Iltimos, barcha majburiy maydonlarni to'ldiring!")
     else:
-        # Notion'ga yuboriladigan JSON Ma'lumot strukturasi
+        recruiter_id = recruiter_dict.get(selected_recruiter, "")
+        
+        # Oliy darajadagi JSON ma'lumot strukturasi (Relation ulanishi bilan)
         notion_data = {
-            "parent": {"database_id": DATABASE_ID},
+            "parent": {"database_id": MAIN_DATABASE_ID},
             "properties": {
                 "Driver Name": {"title": [{"text": {"content": driver_name}}]},
                 "Phone Number": {"phone_number": phone_number},
                 "Driver Type": {"select": {"name": driver_type}},
-                "Status": {"status": {"name": "Lead"}}, # Yangi kirgan driver avtomatik "Lead" bo'ladi
+                "Status": {"status": {"name": "Lead"}}
             }
         }
         
-        # Notion API ga POST so'rovi yuborish
-        response = requests.post("https://api.notion.com/v1/pages", headers=headers, data=json.dumps(notion_data))    
+        # Agar xodimning ID-si aniqlangan bo'lsa, Relation ustunini avtomat to'ldirish triggeri
+        if recruiter_id:
+            notion_data["properties"]["Recruiter"] = {"relation": [{"id": recruiter_id}]}
+            
+        # Ma'lumotni yuborish
+        response = requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_data)
         
         if response.status_code == 200 or response.status_code == 201:
-            st.success(f"Muvaffaqiyatli bajarildi! {driver_name} ma'lumotlari markaziy bazaga yuklandi. Seller tez orada bog'lanadi.")
+            st.success(f"Muvaffaqiyatli bajarildi! {driver_name} ma'lumotlari yuklandi va {selected_recruiter} profiliga avtomat bog'landi!")
         else:
-            st.error(f"Xatolik yuz berdi. Notionga ulanib bo'lmadi: {response.text}")
+            st.error(f"Xatolik yuz berdi: {response.text}")
