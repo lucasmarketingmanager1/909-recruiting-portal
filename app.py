@@ -24,7 +24,7 @@ headers = {
 # 1. TEAM LEADS jadvalidan faqat "Active" xodimlarning ismlarini avtomat oqib olish funksiyasi
 def get_active_recruiters():
     if not TEAM_DATABASE_ID:
-        return ["Adam", "Jason", "Martin", "Tom"] # Agar ID kiritilmagan bo'lsa, zaxira ro'yxat
+        return ["Adam", "Jason", "Martin", "Tom", "Jacob", "Eric"] # Agar ID kiritilmagan bo'lsa, zaxira ro'yxat
     
     url = f"https://api.notion.com/v1/databases/{TEAM_DATABASE_ID}/query"
     payload = {
