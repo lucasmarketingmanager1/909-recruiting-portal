@@ -28,7 +28,7 @@ with st.form("driver_form", clear_on_submit=True):
                                ["Solo ($500-$600)", "Team ($1100-$1200)", "Owner-Operator ($1100-$1200)"])
     
     recruiter_name = st.selectbox("Sizning Ismingiz (Recruiter Name)", 
-                                  ["Recruiter 1", "Recruiter 2", "Recruiter 3", "Recruiter 4"])
+                                  ["Jason", "Adam", "Martin", "Jacob", "Tom", "Stan"])
     
     # Qo'shimcha OTR ma'lumotlari (Telegram kanalga avtomat chiqadigan shablon uchun)
     st.subheader("OTR / Yuk Ma'lumotlari (Kanal uchun)")
