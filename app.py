@@ -99,17 +99,19 @@ if submit_button:
         notion_response = requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_data)
         
         if notion_response.status_code == 200 or notion_response.status_code == 201:
-            st.success(f"✅ {driver_name} ma'lumotlari Notion bazasiga yuklandi va {selected_recruiter} profiliga ulandi!")
+            # Notion-da ochilgan haqiqiy sahifa linkini sug'urib olamiz
+            notion_page_url = notion_response.json().get("url", "https://notion.so")
+            
+            st.success(f"✅ {driver_name} ma'lumotlari Notion bazasiga muvaffaqiyatli yuklandi!")
+            st.markdown(f"🔗 **[Notion-da ochilgan sahifani ko'rish uchun bu yerga bosing]({notion_page_url})**")
             
             # --- 2-OQIM: N8N WEBHOOK VA TELEGRAM UCHUN (Rasm va OTR) ---
             webhook_url = "https://recruiting909.app.n8n.cloud/webhook-test/b2efcc0b-1001-4936-8847-9a626d3dfe70"
             
-            # Rasm faylini baytlarga o'tkazib tayyorlash
             files = {
                 "cdl_file": (cdl_file.name, cdl_file.getvalue(), cdl_file.type)
             }
             
-            # OTR va Shablon ma'lumotlarini qadoqlash
             data = {
                 "driver_name": driver_name,
                 "driver_type": driver_type,
@@ -121,13 +123,14 @@ if submit_button:
             }
             
             try:
+                # n8n ga eshikni ochish va ma'lumotni uzatish
                 n8n_response = requests.post(webhook_url, data=data, files=files)
                 if n8n_response.status_code == 200:
-                    st.info("🚀 CDL Rasm va OTR ma'lumotlari n8n orqali Telegram kanalga otildi!")
+                    st.info("🚀 CDL Rasm va OTR ma'lumotlari n8n qopqoniga muvaffaqiyatli yetib bordi!")
                 else:
-                    st.warning(f"⚠️ n8n serveriga xabar ketmadi: {n8n_response.text}")
+                    st.warning(f"⚠️ n8n serveri qabul qilmadi: {n8n_response.text}")
             except Exception as e:
-                st.error(f"❌ n8n bilan aloqa uzildi: {e}")
+                st.error(f"❌ n8n aloqa uzildi: {e}")
                 
         else:
-            st.error(f"❌ Notion-ga yuklashda xato yuz berdi: {notion_response.text}")
+            st.error(f"❌ Notion API yuklashni rad etdi: {notion_response.status_code} - {notion_response.text}")
