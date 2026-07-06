@@ -78,11 +78,11 @@ with st.form("driver_form", clear_on_submit=True):
 
 if submit_button:
     if not driver_name or not phone_number or not cdl_file:
-        st.st.error("Iltimos, barcha majburiy maydonlarni to'ldiring!")
+        st.error("Iltimos, barcha majburiy maydonlarni to'ldiring!")
     else:
         recruiter_id = recruiter_dict.get(selected_recruiter, "")
         
-        # Oliy darajadagi JSON ma'lumot strukturasi (Relation ulanishi bilan)
+        # --- 1-OQIM: NOTION PIPELINE UCHUN ---
         notion_data = {
             "parent": {"database_id": MAIN_DATABASE_ID},
             "properties": {
@@ -93,14 +93,41 @@ if submit_button:
             }
         }
         
-        # Agar xodimning ID-si aniqlangan bo'lsa, Relation ustunini avtomat to'ldirish triggeri
         if recruiter_id:
             notion_data["properties"]["Recruiter"] = {"relation": [{"id": recruiter_id}]}
             
-        # Ma'lumotni yuborish
-        response = requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_data)
+        notion_response = requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_data)
         
-        if response.status_code == 200 or response.status_code == 201:
-            st.success(f"Muvaffaqiyatli bajarildi! {driver_name} ma'lumotlari yuklandi va {selected_recruiter} profiliga avtomat bog'landi!")
+        if notion_response.status_code == 200 or notion_response.status_code == 201:
+            st.success(f"✅ {driver_name} ma'lumotlari Notion bazasiga yuklandi va {selected_recruiter} profiliga ulandi!")
+            
+            # --- 2-OQIM: N8N WEBHOOK VA TELEGRAM UCHUN (Rasm va OTR) ---
+            webhook_url = "https://recruiting909.app.n8n.cloud/webhook-test/b2efcc0b-1001-4936-8847-9a626d3dfe70"
+            
+            # Rasm faylini baytlarga o'tkazib tayyorlash
+            files = {
+                "cdl_file": (cdl_file.name, cdl_file.getvalue(), cdl_file.type)
+            }
+            
+            # OTR va Shablon ma'lumotlarini qadoqlash
+            data = {
+                "driver_name": driver_name,
+                "driver_type": driver_type,
+                "experience": experience,
+                "weekly_miles": weekly_miles,
+                "eld_type": eld_type,
+                "home_time": home_time,
+                "recruiter": selected_recruiter
+            }
+            
+            try:
+                n8n_response = requests.post(webhook_url, data=data, files=files)
+                if n8n_response.status_code == 200:
+                    st.info("🚀 CDL Rasm va OTR ma'lumotlari n8n orqali Telegram kanalga otildi!")
+                else:
+                    st.warning(f"⚠️ n8n serveriga xabar ketmadi: {n8n_response.text}")
+            except Exception as e:
+                st.error(f"❌ n8n bilan aloqa uzildi: {e}")
+                
         else:
-            st.error(f"Xatolik yuz berdi: {response.text}")
+            st.error(f"❌ Notion-ga yuklashda xato yuz berdi: {notion_response.text}")
