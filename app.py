@@ -41,18 +41,19 @@ def get_active_recruiters():
 recruiter_dict = get_active_recruiters()
 recruiter_options = list(recruiter_dict.keys())
 
+# --- MUAMMO YECHIMI: REJIM TANLASH FORMADAN TASHQARIGA CHIQARILDI ---
+st.markdown("### 🔀 Ma'lumot qayerga yuborilsin?")
+destination = st.radio(
+    "Tizimni tanlang:",
+    ("Public Channel (Ommaviy kanal - Rasm blur qilinadi)", 
+     "Internal Channel (Shaxsiy kanal - Asl nusxa + Barcha hujjatlar)", 
+     "Database Only (Faqat Notion CRM)")
+)
+st.divider()
+
+# --- FORMA SHU YERDAN BOSHLANADI ---
 with st.form("driver_form", clear_on_submit=True):
     
-    st.markdown("### 🔀 Ma'lumot qayerga yuborilsin?")
-    # REJIUM TANLASH
-    destination = st.radio(
-        "Tizimni tanlang:",
-        ("Public Channel (Ommaviy kanal - Rasm blur qilinadi)", 
-         "Internal Channel (Shaxsiy kanal - Asl nusxa + Barcha hujjatlar)", 
-         "Database Only (Faqat Notion CRM)")
-    )
-    st.divider()
-
     st.subheader("👤 Haydovchi Ma'lumotlari")
     driver_name = st.text_input("Haydovchining Ismi va Familiyasi*")
     phone_number = st.text_input("Telefon Raqami*")
@@ -98,7 +99,7 @@ with st.form("driver_form", clear_on_submit=True):
     cdl_back = None
     medical_card = None
     
-    # AGAR PUBLIC BO'LMASA, QO'SHIMCHA RASMLAR OCHILADI
+    # AGAR PUBLIC BO'LMASA, QO'SHIMCHA RASMLAR OCHILADI (DINAMIK)
     if destination != "Public Channel (Ommaviy kanal - Rasm blur qilinadi)":
         col_f1, col_f2 = st.columns(2)
         with col_f1:
