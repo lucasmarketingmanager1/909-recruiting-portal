@@ -4,9 +4,8 @@ import requests
 # Sahifa sozlamalari
 st.set_page_config(page_title="909 Recruiting Portal", page_icon="🚚", layout="centered")
 st.title("🚚 909 Recruiting Agency — Driver Entry Portal")
-st.write("Recruiterlar uchun haydovchi ma'lumotlarini avtomatlashtirilgan kiritish tizimi.")
 
-# Streamlit Secrets ichidan maxfiy kalitlarni oqish
+# Maxfiy kalitlar
 NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
 MAIN_DATABASE_ID = st.secrets["DATABASE_ID"]
 TEAM_DATABASE_ID = st.secrets.get("TEAM_DATABASE_ID", "")
@@ -17,18 +16,11 @@ headers = {
     "Notion-Version": "2022-06-28"
 }
 
-# 1. TEAM LEADS jadvalidan faqat "Active" xodimlarning ismlarini avtomat oqib olish funksiyasi
 def get_active_recruiters():
     if not TEAM_DATABASE_ID:
         return ["Adam", "Jason", "Martin", "Tom", "Jacob", "Eric", "Lucas"] 
-    
     url = f"https://api.notion.com/v1/databases/{TEAM_DATABASE_ID}/query"
-    payload = {
-        "filter": {
-            "property": "Status",
-            "status": {"equals": "Active"}
-        }
-    }
+    payload = {"filter": {"property": "Status", "status": {"equals": "Active"}}}
     try:
         response = requests.post(url, headers=headers, json=payload)
         if response.status_code == 200:
@@ -42,18 +34,17 @@ def get_active_recruiters():
                     if role == "Recruiter":
                         recruiters[name] = page["id"]
             return recruiters
-        return {"Adam": "", "Jason": "", "Martin": "", "Tom": "", "Lucas": ""}
+        return {"Adam": "", "Jason": "", "Martin": "", "Lucas": ""}
     except:
-        return {"Adam": "", "Jason": "", "Martin": "", "Tom": "", "Lucas": ""}
+        return {"Adam": "", "Jason": "", "Martin": "", "Lucas": ""}
 
 recruiter_dict = get_active_recruiters()
 recruiter_options = list(recruiter_dict.keys())
 
-# Forma yaratish
 with st.form("driver_form", clear_on_submit=True):
     
-    # --- YUKLASH TURI (ROUTING) ---
     st.markdown("### 🔀 Ma'lumot qayerga yuborilsin?")
+    # REJIUM TANLASH
     destination = st.radio(
         "Tizimni tanlang:",
         ("Public Channel (Ommaviy kanal - Rasm blur qilinadi)", 
@@ -62,22 +53,20 @@ with st.form("driver_form", clear_on_submit=True):
     )
     st.divider()
 
-    # --- ASOSIY MA'LUMOTLAR ---
     st.subheader("👤 Haydovchi Ma'lumotlari")
-    driver_name = st.text_input("Haydovchining Ismi va Familiyasi (Full Name)*")
-    phone_number = st.text_input("Telefon Raqami (Phone Number)*")
+    driver_name = st.text_input("Haydovchining Ismi va Familiyasi*")
+    phone_number = st.text_input("Telefon Raqami*")
     
     col_a, col_b = st.columns(2)
     with col_a:
-        driver_type = st.selectbox("Haydovchi Turi", ["Solo", "Team", "Owner-Operator"])
+        # NOTION UCHUN TO'G'RILANGAN NARXLAR
+        driver_type = st.selectbox("Haydovchi Turi", ["Solo ($500-$600)", "Team ($1100-$1200)", "Owner-Operator ($1100-$1200)"])
     with col_b:
         selected_recruiter = st.selectbox("Sizning Ismingiz (Agent)*", recruiter_options)
 
     st.divider()
 
-    # --- SOTUV VA OTR MA'LUMOTLARI ---
     st.subheader("📊 Sotuv va OTR Ma'lumotlari")
-    
     col1, col2, col3 = st.columns(3)
     with col1:
         experience = st.number_input("Tajribasi (Yil)", min_value=0, max_value=50, value=2)
@@ -101,15 +90,16 @@ with st.form("driver_form", clear_on_submit=True):
     
     st.divider()
 
-    # --- HUJJATLAR (FILES) ---
     st.subheader("📎 Hujjatlarni Yuklash")
+    
+    # ASOSIY RASM HAMMA REJIM UCHUN
     cdl_front = st.file_uploader("CDL Oldi (Asosiy Nusxa)*", type=["png", "jpg", "jpeg"])
     
     cdl_back = None
     medical_card = None
     
-    # Agar Internal yoki faqat Notion bo'lsa, qoshimcha hujjatlar ochiladi
-    if destination in ["Internal Channel (Shaxsiy kanal - Asl nusxa + Barcha hujjatlar)", "Database Only (Faqat Notion CRM)"]:
+    # AGAR PUBLIC BO'LMASA, QO'SHIMCHA RASMLAR OCHILADI
+    if destination != "Public Channel (Ommaviy kanal - Rasm blur qilinadi)":
         col_f1, col_f2 = st.columns(2)
         with col_f1:
             cdl_back = st.file_uploader("CDL Orqa tarafi (Ixtiyoriy)", type=["png", "jpg", "jpeg"])
@@ -118,14 +108,13 @@ with st.form("driver_form", clear_on_submit=True):
 
     submit_button = st.form_submit_button(label="Tizimga Yuklash 🚀")
 
-# --- YUBORISH MANTIQI ---
 if submit_button:
     if not driver_name or not phone_number or not cdl_front:
         st.error("❌ Iltimos, barcha majburiy (*) maydonlarni to'ldiring!")
     else:
         recruiter_id = recruiter_dict.get(selected_recruiter, "")
         
-        # 1. NOTION PIPELINE UCHUN
+        # NOTION PIPELINE
         notion_data = {
             "parent": {"database_id": MAIN_DATABASE_ID},
             "properties": {
@@ -135,30 +124,26 @@ if submit_button:
                 "Status": {"status": {"name": "Lead"}}
             }
         }
-        
         if recruiter_id:
             notion_data["properties"]["Recruiter"] = {"relation": [{"id": recruiter_id}]}
             
         notion_response = requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_data)
         
         if notion_response.status_code in [200, 201]:
-            notion_page_url = notion_response.json().get("url", "https://notion.so")
             st.success(f"✅ {driver_name} ma'lumotlari Notion bazasiga yuklandi!")
-            st.markdown(f"🔗 **[Notion-da ko'rish]({notion_page_url})**")
             
-            # 2. N8N WEBHOOK VA TELEGRAM UCHUN
-            webhook_url = "https://recruiting909.app.n8n.cloud/webhook-test/b2efcc0b-1001-4936-8847-9a626d3dfe70"
+            # N8N WEBHOOK (PRODUCTION URL - TEST EMAS!)
+            webhook_url = "https://recruiting909.app.n8n.cloud/webhook/b2efcc0b-1001-4936-8847-9a626d3dfe70"
             
-            # Yuboriladigan fayllarni yig'ish (Dynamic Multiple Files)
             files = {}
+            # N8N TUSHUNISHI UCHUN "cdl_file" NOMI BILAN YUBORAMIZ
             if cdl_front:
-                files["cdl_front"] = (cdl_front.name, cdl_front.getvalue(), cdl_front.type)
+                files["cdl_file"] = (cdl_front.name, cdl_front.getvalue(), cdl_front.type)
             if cdl_back:
                 files["cdl_back"] = (cdl_back.name, cdl_back.getvalue(), cdl_back.type)
             if medical_card:
                 files["medical_card"] = (medical_card.name, medical_card.getvalue(), medical_card.type)
             
-            # Yuboriladigan ma'lumotlar (Routing bilan)
             data = {
                 "routing": destination,
                 "driver_name": driver_name,
@@ -185,6 +170,5 @@ if submit_button:
                     st.warning(f"⚠️ n8n serveri xatosi: {n8n_response.text}")
             except Exception as e:
                 st.error(f"❌ n8n aloqa uzildi: {e}")
-                
         else:
-            st.error(f"❌ Notion API xatosi: {notion_response.status_code} - {notion_response.text}")
+            st.error(f"❌ Notion API xatosi: {notion_response.status_code}")
