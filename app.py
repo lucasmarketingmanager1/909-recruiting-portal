@@ -1,6 +1,9 @@
 import streamlit as st
 import requests
 
+# ==========================================
+# 1. SAHIFA SOZLAMALARI VA DIZAYN
+# ==========================================
 st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🚛", layout="centered")
 
 st.markdown("""
@@ -13,61 +16,50 @@ st.title("🚛 909 Recruiting Agency | HR Portal")
 st.markdown("---")
 
 # ==========================================
-# 🧠 NOTION API INTEGRATSIYASI (TEAM LEADS)
+# 2. MAXFIY KALITLAR VA NOTION MANTIG'I (Eski ishlaydigan koddan olindi)
 # ==========================================
-@st.cache_data(ttl=300)
-def get_active_agents():
-    NOTION_TOKEN = st.secrets.get("NOTION_TOKEN", "")
-    DATABASE_ID = st.secrets.get("TEAM_LEADS_DB_ID", "")
-    
-    if not NOTION_TOKEN or not DATABASE_ID:
-        return ["⚠️ Setup Notion Secrets", "Other"]
+NOTION_TOKEN = st.secrets.get("NOTION_TOKEN", "")
+MAIN_DATABASE_ID = st.secrets.get("DATABASE_ID", "")
+TEAM_DATABASE_ID = st.secrets.get("TEAM_DATABASE_ID", "")
 
-    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
-    headers = {
-        "Authorization": f"Bearer {NOTION_TOKEN}",
-        "Notion-Version": "2022-06-28",
-        "Content-Type": "application/json"
-    }
+headers = {
+    "Authorization": f"Bearer {NOTION_TOKEN}",
+    "Content-Type": "application/json",
+    "Notion-Version": "2022-06-28"
+}
+
+@st.cache_data(ttl=300)
+def get_active_recruiters():
+    fallback = {"Adam": "", "Jason": "", "Martin": "", "Tom": "", "Jacob": "", "Eric": "", "Lucas": ""}
+    if not TEAM_DATABASE_ID or not NOTION_TOKEN:
+        return fallback
+        
+    url = f"https://api.notion.com/v1/databases/{TEAM_DATABASE_ID}/query"
+    payload = {"filter": {"property": "Status", "status": {"equals": "Active"}}}
     
     try:
-        res = requests.post(url, headers=headers, json={})
-        if res.status_code != 200:
-            return ["⚠️ Notion API Error", "Other"]
-        
-        data = res.json()
-        agents = []
-        
-        for row in data.get("results", []):
-            props = row.get("properties", {})
-            try:
-                name_obj = props.get("Name", {}).get("title", [])
-                if not name_obj: continue
-                name = name_obj[0].get("plain_text", "")
-
-                status_obj = props.get("Status", {})
-                if "select" in status_obj and status_obj["select"]:
-                    status = status_obj["select"].get("name", "")
-                elif "status" in status_obj and status_obj["status"]:
-                    status = status_obj["status"].get("name", "")
-                else:
-                    status = ""
-
-                if status.lower() == "active":
-                    agents.append(name)
-            except Exception:
-                pass
-                
-        if not agents:
-            return ["No Active Agents Found", "Other"]
-            
-        agents.sort()
-        agents.append("Other")
-        return agents
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code == 200:
+            results = response.json().get("results", [])
+            recruiters = {}
+            for page in results:
+                name_list = page["properties"]["Name"]["title"]
+                if name_list:
+                    name = name_list[0]["plain_text"]
+                    # Diqqat: Sizning Notiondagi "Role" mantiqingiz qaytarildi!
+                    role = page["properties"]["Role"]["select"]["name"]
+                    if role == "Recruiter":
+                        recruiters[name] = page["id"]
+            if recruiters:
+                return recruiters
+        return fallback
     except:
-        return ["⚠️ Network Error", "Other"]
+        return fallback
 
-ACTIVE_AGENTS = get_active_agents()
+recruiter_dict = get_active_recruiters()
+recruiter_options = list(recruiter_dict.keys())
+recruiter_options.sort()
+recruiter_options.append("Other (Type manually)")
 
 # BARCHA 48 OTR SHTATLAR
 US_STATES = [
@@ -82,12 +74,20 @@ US_STATES = [
     "WV - West Virginia", "WY - Wyoming"
 ]
 
+# ==========================================
+# 3. MUKAMMAL FORMA (Yangi dizayn + Eski maydonlar)
+# ==========================================
 with st.form("driver_onboarding_form"):
     
     st.subheader("👤 Driver Details")
     driver_name = st.text_input("Driver's Full Name *")
+    phone_number = st.text_input("Phone Number *") # ESKI KODDAN QAYTARILDI
     
-    experience_yrs = st.number_input("CDL-A Experience (Years) *", min_value=0, max_value=60, value=2, step=1)
+    col_type, col_exp = st.columns(2)
+    with col_type:
+        driver_type = st.selectbox("Driver Type *", ["Solo ($500-$600)", "Team ($1100-$1200)", "Owner-Operator ($1100-$1200)"]) # ESKI KODDAN QAYTARILDI
+    with col_exp:
+        experience_yrs = st.number_input("CDL-A Experience (Years) *", min_value=0, max_value=60, value=2, step=1)
     
     pay_col1, pay_col2 = st.columns(2)
     with pay_col1:
@@ -97,7 +97,6 @@ with st.form("driver_onboarding_form"):
     
     location = st.selectbox("Current Location (State) *", US_STATES)
     
-    # MUAMMO YECHIMI: Yonma-yon joylashtirilgan doimiy qutilar (Zero-lag saqlanadi)
     ready_col1, ready_col2 = st.columns(2)
     with ready_col1:
         ready_choice = st.selectbox("Ready to Start *", ["ASAP", "Within 3 days", "Next week", "Custom"])
@@ -106,7 +105,7 @@ with st.form("driver_onboarding_form"):
     
     agent_col1, agent_col2 = st.columns(2)
     with agent_col1:
-        agent_choice = st.selectbox("Selling Agent Name *", ACTIVE_AGENTS)
+        agent_choice = st.selectbox("Selling Agent Name *", recruiter_options)
     with agent_col2:
         agent_custom = st.text_input("✍️ If Other, type Agent name:")
 
@@ -135,7 +134,7 @@ with st.form("driver_onboarding_form"):
     st.markdown("---")
     
     st.subheader("📂 Document Uploads & Routing")
-    cdl_file = st.file_uploader("Upload CDL (Front) *", type=['png', 'jpg', 'jpeg'])
+    cdl_front = st.file_uploader("Upload CDL (Front) *", type=['png', 'jpg', 'jpeg'])
     cdl_back = st.file_uploader("Upload CDL (Back) *", type=['png', 'jpg', 'jpeg'])
     medical_card = st.file_uploader("Upload Medical Card *", type=['png', 'jpg', 'jpeg'])
     
@@ -147,19 +146,20 @@ with st.form("driver_onboarding_form"):
 
     submitted = st.form_submit_button("🚀 PROCESS DRIVER TO SYSTEM")
 
+# ==========================================
+# 4. EGIZAK YUBORISH MANTIGI (Notion + n8n)
+# ==========================================
 if submitted:
-    if not driver_name or not cdl_file or not cdl_back or not medical_card:
-        st.error("❌ ERROR: Driver's Name and all 3 documents (CDL Front, Back, Medical Card) are mandatory!")
+    if not driver_name or not phone_number or not cdl_front or not cdl_back or not medical_card:
+        st.error("❌ ERROR: Driver's Name, Phone Number, and all 3 documents are mandatory!")
     else:
-        with st.spinner("Encrypting and sending to 909 RA Database..."):
+        with st.spinner("Encrypting and processing data..."):
             
-            # ORQA FONDAGI MANTIQ: Agar ro'yxatdan "Custom/Other" tanlangan bo'lsa va yonidagi qutiga yozilgan bo'lsa, o'shani oladi
+            # Custom maydonlarni tekshirish
             final_ready = ready_custom if (ready_choice == "Custom" and ready_custom.strip()) else ready_choice
-            final_agent = agent_custom if (agent_choice == "Other" and agent_custom.strip()) else agent_choice
+            final_agent = agent_custom if (agent_choice == "Other (Type manually)" and agent_custom.strip()) else agent_choice
             final_work = work_custom if (work_choice == "Custom" and work_custom.strip()) else work_choice
             final_home = home_custom if (home_choice == "Custom" and home_custom.strip()) else home_choice
-            
-            WEBHOOK_URL = "SIZNING_N8N_WEBHOOK_URL_MANZILINGIZNI_SHU_YERGA_QO'YING"
             
             if pay_type == "CPM":
                 formatted_pay = f"{pay_amount} CPM"
@@ -167,9 +167,44 @@ if submitted:
                 formatted_pay = f"{pay_amount}%"
             else:
                 formatted_pay = f"${pay_amount} / Week"
+
+            # ---------------------------------------------------------
+            # BQ-1: NOTION MASTER CRM'GA TO'G'RIDAN-TO'G'RI YOZISH
+            # ---------------------------------------------------------
+            recruiter_id = recruiter_dict.get(agent_choice, "") if agent_choice != "Other (Type manually)" else ""
             
+            notion_data = {
+                "parent": {"database_id": MAIN_DATABASE_ID},
+                "properties": {
+                    "Driver Name": {"title": [{"text": {"content": driver_name}}]},
+                    "Phone Number": {"phone_number": phone_number},
+                    "Driver Type": {"select": {"name": driver_type.split(" ")[0]}}, # Faqat Solo/Team so'zini ajratib oladi
+                    "Status": {"status": {"name": "Lead"}}
+                }
+            }
+            if recruiter_id:
+                notion_data["properties"]["Recruiter"] = {"relation": [{"id": recruiter_id}]}
+                
+            try:
+                notion_res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_data)
+                if notion_res.status_code in [200, 201]:
+                    st.success(f"✅ {driver_name} ma'lumotlari Notion CRM'ga muvaffaqiyatli saqlandi!")
+                else:
+                    st.warning(f"⚠️ Notion API xatosi: {notion_res.status_code} - Iltimos, sozlamalarni tekshiring.")
+            except Exception as e:
+                st.warning(f"⚠️ Notion bilan ulanishda xato: {e}")
+
+            # ---------------------------------------------------------
+            # BQ-2: N8N WEBHOOK ORQALI TELEGRAM VA AUTOMATION'GA YUBORISH
+            # ---------------------------------------------------------
+            # Sizning haqiqiy n8n Webhook manzilingiz eski koddan olindi!
+            WEBHOOK_URL = "https://recruiting909.app.n8n.cloud/webhook/b2efcc0b-1001-4936-8847-9a626d3dfe70"
+
             payload = {
+                "routing": "Internal Channel" if "Internal" in routing_destination else "Public Channel",
                 "driver_name": driver_name,
+                "phone_number": phone_number,
+                "driver_type": driver_type,
                 "experience": f"{experience_yrs} Years",
                 "pay_rate": formatted_pay,
                 "location": location,
@@ -181,23 +216,23 @@ if submitted:
                 "work_time": final_work,
                 "home_time": final_home,
                 "escrow": escrow,
-                "notes": notes,
-                "destination": "Internal" if "Internal" in routing_destination else "Public"
+                "notes": notes
             }
             
+            # Eski koddagi kabi .getvalue() funksiyasi ishlatildi!
             files = {
-                "cdl_file": (cdl_file.name, cdl_file, cdl_file.type),
-                "cdl_back": (cdl_back.name, cdl_back, cdl_back.type),
-                "medical_card": (medical_card.name, medical_card, medical_card.type)
+                "cdl_file": (cdl_front.name, cdl_front.getvalue(), cdl_front.type),
+                "cdl_back": (cdl_back.name, cdl_back.getvalue(), cdl_back.type),
+                "medical_card": (medical_card.name, medical_card.getvalue(), medical_card.type)
             }
             
             try:
-                response = requests.post(WEBHOOK_URL, data=payload, files=files, timeout=10)
+                response = requests.post(WEBHOOK_URL, data=payload, files=files, timeout=15)
                 if response.status_code == 200:
-                    st.success(f"✅ SUCCESS: {driver_name} has been routed to the {payload['destination']} pipeline.")
+                    st.info(f"🚀 Ma'lumotlar n8n markaziga muvaffaqiyatli yetib bordi!")
                 else:
-                    st.error(f"⚠️ SYSTEM ERROR: n8n responded with code {response.status_code}.")
+                    st.error(f"⚠️ n8n tizim xatosi: {response.text}")
             except requests.exceptions.Timeout:
-                st.error("⏳ TIMEOUT: n8n server took too long to respond.")
+                st.error("⏳ TIMEOUT: n8n server javob bermadi.")
             except Exception as e:
-                st.error(f"❌ CONNECTION ERROR: {e}")
+                st.error(f"❌ n8n aloqa uzildi: {e}")
