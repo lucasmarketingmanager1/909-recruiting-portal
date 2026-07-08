@@ -1,175 +1,152 @@
 import streamlit as st
 import requests
 
-# Sahifa sozlamalari
-st.set_page_config(page_title="909 Recruiting Portal", page_icon="🚚", layout="centered")
-st.title("🚚 909 Recruiting Agency — Driver Entry Portal")
+# ==========================================
+# 1. SAHIFA SOZLAMALARI VA DIZAYN (UI/UX)
+# ==========================================
+st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🚛", layout="wide")
 
-# Maxfiy kalitlar
-NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
-MAIN_DATABASE_ID = st.secrets["DATABASE_ID"]
-TEAM_DATABASE_ID = st.secrets.get("TEAM_DATABASE_ID", "")
+st.markdown("""
+<style>
+    /* Clean and Professional UI */
+    .stApp { background-color: #f4f6f9; }
+    .stButton>button { width: 100%; background-color: #0b1f3f; color: white; border-radius: 5px; font-weight: bold; }
+    .stButton>button:hover { background-color: #1d3c6a; color: white; }
+    h1, h2, h3, h4 { color: #0b1f3f; }
+    .st-bx { background-color: white; border-radius: 8px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+</style>
+""", unsafe_allow_html=True)
 
-headers = {
-    "Authorization": f"Bearer {NOTION_TOKEN}",
-    "Content-Type": "application/json",
-    "Notion-Version": "2022-06-28"
-}
+st.title("🚛 909 Recruiting Agency | Dispatch & HR Portal")
+st.markdown("---")
 
-def get_active_recruiters():
-    if not TEAM_DATABASE_ID:
-        return ["Adam", "Jason", "Martin", "Tom", "Jacob", "Eric", "Lucas"] 
-    url = f"https://api.notion.com/v1/databases/{TEAM_DATABASE_ID}/query"
-    payload = {"filter": {"property": "Status", "status": {"equals": "Active"}}}
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        if response.status_code == 200:
-            results = response.json().get("results", [])
-            recruiters = {}
-            for page in results:
-                name_list = page["properties"]["Name"]["title"]
-                if name_list:
-                    name = name_list[0]["plain_text"]
-                    role = page["properties"]["Role"]["select"]["name"]
-                    if role == "Recruiter":
-                        recruiters[name] = page["id"]
-            return recruiters
-        return {"Adam": "", "Jason": "", "Martin": "", "Lucas": ""}
-    except:
-        return {"Adam": "", "Jason": "", "Martin": "", "Lucas": ""}
+# ==========================================
+# 2. BARCHA 48 OTR SHTATLAR RO'YXATI
+# ==========================================
+US_STATES = [
+    "AL - Alabama", "AR - Arkansas", "AZ - Arizona", "CA - California", "CO - Colorado", "CT - Connecticut", 
+    "DE - Delaware", "FL - Florida", "GA - Georgia", "IA - Iowa", "ID - Idaho", "IL - Illinois", 
+    "IN - Indiana", "KS - Kansas", "KY - Kentucky", "LA - Louisiana", "MA - Massachusetts", "MD - Maryland", 
+    "ME - Maine", "MI - Michigan", "MN - Minnesota", "MO - Missouri", "MS - Mississippi", "MT - Montana", 
+    "NC - North Carolina", "ND - North Dakota", "NE - Nebraska", "NH - New Hampshire", "NJ - New Jersey", 
+    "NM - New Mexico", "NV - Nevada", "NY - New York", "OH - Ohio", "OK - Oklahoma", "OR - Oregon", 
+    "PA - Pennsylvania", "RI - Rhode Island", "SC - South Carolina", "SD - South Dakota", "TN - Tennessee", 
+    "TX - Texas", "UT - Utah", "VA - Virginia", "VT - Vermont", "WA - Washington", "WI - Wisconsin", 
+    "WV - West Virginia", "WY - Wyoming"
+]
 
-recruiter_dict = get_active_recruiters()
-recruiter_options = list(recruiter_dict.keys())
-
-# --- MUAMMO YECHIMI: REJIM TANLASH FORMADAN TASHQARIGA CHIQARILDI ---
-st.markdown("### 🔀 Ma'lumot qayerga yuborilsin?")
-destination = st.radio(
-    "Tizimni tanlang:",
-    ("Public Channel (Ommaviy kanal - Rasm blur qilinadi)", 
-     "Internal Channel (Shaxsiy kanal - Asl nusxa + Barcha hujjatlar)", 
-     "Database Only (Faqat Notion CRM)")
-)
-st.divider()
-
-# --- FORMA SHU YERDAN BOSHLANADI ---
-with st.form("driver_form", clear_on_submit=True):
+# ==========================================
+# 3. FORM ARXITEKTURASI (ZERO-LAG)
+# ==========================================
+with st.form("driver_onboarding_form"):
     
-    st.subheader("👤 Haydovchi Ma'lumotlari")
-    driver_name = st.text_input("Haydovchining Ismi va Familiyasi*")
-    phone_number = st.text_input("Telefon Raqami*")
+    col1, col2 = st.columns(2)
     
-    col_a, col_b = st.columns(2)
-    with col_a:
-        # NOTION UCHUN TO'G'RILANGAN NARXLAR
-        driver_type = st.selectbox("Haydovchi Turi", ["Solo ($500-$600)", "Team ($1100-$1200)", "Owner-Operator ($1100-$1200)"])
-    with col_b:
-        selected_recruiter = st.selectbox("Sizning Ismingiz (Agent)*", recruiter_options)
-
-    st.divider()
-
-    st.subheader("📊 Sotuv va OTR Ma'lumotlari")
-    col1, col2, col3 = st.columns(3)
+    # CHAP TOMON: Shaxsiy va To'lov ma'lumotlari
     with col1:
-        experience = st.number_input("Tajribasi (Yil)", min_value=0, max_value=50, value=2)
+        st.subheader("👤 Driver Details")
+        driver_name = st.text_input("Driver's Full Name *")
+        experience = st.selectbox("CDL-A Experience *", ["Under 1 year", "1 Year", "2 Years", "3 Years", "4 Years", "5+ Years"])
+        
+        # Aqlli to'lov tizimi (Pay Structure)
+        pay_col1, pay_col2 = st.columns(2)
+        with pay_col1:
+            pay_type = st.selectbox("Pay Structure *", ["CPM", "Percentage (%)", "Flat Weekly ($)"])
+        with pay_col2:
+            pay_amount = st.number_input("Amount *", min_value=1, max_value=5000, value=65, step=1)
+        
+        location = st.selectbox("Current Location (State) *", US_STATES, help="Type to search states.")
+        ready_date = st.selectbox("Ready to Start *", ["ASAP", "Within 3 days", "Next week", "Needs 2+ weeks notice"])
+        agent = st.text_input("Selling Agent / Recruiter Name *")
+
+    # O'NG TOMON: Operatsion ma'lumotlar
     with col2:
-        weekly_miles = st.text_input("Haftalik mili", value="3000+ miles")
+        st.subheader("📊 Operational & Target Setup")
+        loads = st.multiselect("Equipment / Loads *", ["Reefer", "Dry Van", "Flatbed", "Step Deck", "Box Truck", "Power Only"])
+        weekly_miles = st.number_input("Target Weekly Miles", min_value=1000, max_value=4000, value=2500, step=100)
+        eld_type = st.selectbox("ELD Experience", ["Motive (KeepTruckin)", "Samsara", "Garmin", "OmniTracs", "Other"])
+        work_time = st.selectbox("Work Time (OTR)", ["2 weeks out", "3 weeks out", "4+ weeks out", "No touch freight strictly"])
+        home_time = st.selectbox("Home Time Requirements", ["2-3 Days", "4-5 Days", "1 Full Week"])
+        escrow = st.selectbox("Escrow Agreement", ["Agreed (Standard deductions)", "Needs Negotiation", "Refused"])
+
+    st.markdown("---")
+    
+    col3, col4 = st.columns(2)
+    
+    # HUJJATLARNI YUKLASH
     with col3:
-        eld_type = st.selectbox("ELD Turi", ["Friendly", "Strict", "No ELD"])
+        st.subheader("📂 Document Uploads")
+        cdl_file = st.file_uploader("Upload CDL (Front) *", type=['png', 'jpg', 'jpeg'])
+        cdl_back = st.file_uploader("Upload CDL (Back) *", type=['png', 'jpg', 'jpeg'])
+        medical_card = st.file_uploader("Upload Medical Card *", type=['png', 'jpg', 'jpeg'])
         
-    col4, col5 = st.columns(2)
+    # ROUTING VA QO'SHIMCHA MA'LUMOT
     with col4:
-        work_time = st.text_input("Ishlash vaqti (Work Time)", value="3 weeks out")
-        pay_rate = st.text_input("To'lov (Pay Rate)", placeholder="Masalan: 25% yoki 65 CPM")
-        location = st.text_input("Joylashuvi (Location)", placeholder="Masalan: Chicago, IL")
-    with col5:
-        home_time = st.text_input("Uydagi vaqti (Home Time)", value="3-4 days")
-        escrow = st.selectbox("Escrow", ["Yes", "No", "Negotiable"])
-        loads = st.text_input("Yuklar turi (Loads)", placeholder="Amazon, FedEx, Dry Van")
-        
-    ready_date = st.text_input("Tayyor bo'lish vaqti (Ready Date)", value="ASAP")
-    notes = st.text_area("Qo'shimcha izoh (Note)")
-    
-    st.divider()
+        st.subheader("🎯 Routing & Notes")
+        routing_destination = st.radio(
+            "Where should this driver be posted?",
+            ["🟢 Internal Channel (Contracted Carrier Priority)", "🔵 Public Channel (Open Market)"]
+        )
+        notes = st.text_area("Additional Notes (MVR issues, preferred routes, etc.)")
 
-    st.subheader("📎 Hujjatlarni Yuklash")
-    
-    # ASOSIY RASM HAMMA REJIM UCHUN
-    cdl_front = st.file_uploader("CDL Oldi (Asosiy Nusxa)*", type=["png", "jpg", "jpeg"])
-    
-    cdl_back = None
-    medical_card = None
-    
-    # AGAR PUBLIC BO'LMASA, QO'SHIMCHA RASMLAR OCHILADI (DINAMIK)
-    if destination != "Public Channel (Ommaviy kanal - Rasm blur qilinadi)":
-        col_f1, col_f2 = st.columns(2)
-        with col_f1:
-            cdl_back = st.file_uploader("CDL Orqa tarafi (Ixtiyoriy)", type=["png", "jpg", "jpeg"])
-        with col_f2:
-            medical_card = st.file_uploader("Medical Card (Ixtiyoriy)", type=["png", "jpg", "jpeg"])
+    # YUBORISH TUGMASI
+    submitted = st.form_submit_button("🚀 PROCESS DRIVER TO SYSTEM")
 
-    submit_button = st.form_submit_button(label="Tizimga Yuklash 🚀")
-
-if submit_button:
-    if not driver_name or not phone_number or not cdl_front:
-        st.error("❌ Iltimos, barcha majburiy (*) maydonlarni to'ldiring!")
+# ==========================================
+# 4. N8N WEBHOOK'GA YUBORISH MANTIQI
+# ==========================================
+if submitted:
+    # Majburiy maydonlarni tekshirish
+    if not driver_name or not cdl_file or not cdl_back or not medical_card:
+        st.error("❌ ERROR: Driver's Name and all 3 documents (CDL Front, Back, Medical Card) are mandatory!")
     else:
-        recruiter_id = recruiter_dict.get(selected_recruiter, "")
-        
-        # NOTION PIPELINE
-        notion_data = {
-            "parent": {"database_id": MAIN_DATABASE_ID},
-            "properties": {
-                "Driver Name": {"title": [{"text": {"content": driver_name}}]},
-                "Phone Number": {"phone_number": phone_number},
-                "Driver Type": {"select": {"name": driver_type}},
-                "Status": {"status": {"name": "Lead"}}
-            }
-        }
-        if recruiter_id:
-            notion_data["properties"]["Recruiter"] = {"relation": [{"id": recruiter_id}]}
+        with st.spinner("Encrypting and sending to 909 RA Database..."):
             
-        notion_response = requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_data)
-        
-        if notion_response.status_code in [200, 201]:
-            st.success(f"✅ {driver_name} ma'lumotlari Notion bazasiga yuklandi!")
+            # DIQQAT: O'zingizning n8n Webhook URL manzilingizni qo'ying
+            WEBHOOK_URL = "SIZNING_N8N_WEBHOOK_URL_MANZILINGIZNI_SHU_YERGA_QO'YING"
             
-            # N8N WEBHOOK (PRODUCTION URL - TEST EMAS!)
-            webhook_url = "https://recruiting909.app.n8n.cloud/webhook/b2efcc0b-1001-4936-8847-9a626d3dfe70"
+            # To'lov formatini aqlli shakllantirish
+            if pay_type == "CPM":
+                formatted_pay = f"{pay_amount} CPM"
+            elif pay_type == "Percentage (%)":
+                formatted_pay = f"{pay_amount}%"
+            else:
+                formatted_pay = f"${pay_amount} / Week"
             
-            files = {}
-            # N8N TUSHUNISHI UCHUN "cdl_file" NOMI BILAN YUBORAMIZ
-            if cdl_front:
-                files["cdl_file"] = (cdl_front.name, cdl_front.getvalue(), cdl_front.type)
-            if cdl_back:
-                files["cdl_back"] = (cdl_back.name, cdl_back.getvalue(), cdl_back.type)
-            if medical_card:
-                files["medical_card"] = (medical_card.name, medical_card.getvalue(), medical_card.type)
-            
-            data = {
-                "routing": destination,
+            # n8n ga ketadigan matnli ma'lumotlar
+            payload = {
                 "driver_name": driver_name,
-                "driver_type": driver_type,
                 "experience": experience,
+                "pay_rate": formatted_pay,
+                "location": location,
+                "ready_date": ready_date,
+                "agent": agent,
+                "loads": ", ".join(loads),
                 "weekly_miles": weekly_miles,
                 "eld_type": eld_type,
                 "work_time": work_time,
                 "home_time": home_time,
-                "pay_rate": pay_rate,
                 "escrow": escrow,
-                "loads": loads,
-                "location": location,
-                "ready_date": ready_date,
-                "recruiter": selected_recruiter,
-                "notes": notes
+                "notes": notes,
+                "destination": "Internal" if "Internal" in routing_destination else "Public"
+            }
+            
+            # n8n ga ketadigan fayllar (Binary)
+            files = {
+                "cdl_file": (cdl_file.name, cdl_file, cdl_file.type),
+                "cdl_back": (cdl_back.name, cdl_back, cdl_back.type),
+                "medical_card": (medical_card.name, medical_card, medical_card.type)
             }
             
             try:
-                n8n_response = requests.post(webhook_url, data=data, files=files)
-                if n8n_response.status_code == 200:
-                    st.info(f"🚀 Ma'lumotlar n8n markaziga ({destination.split()[0]}) muvaffaqiyatli yetib bordi!")
+                # timeout=10 ilovani qotib qolishdan asraydi
+                response = requests.post(WEBHOOK_URL, data=payload, files=files, timeout=10)
+                
+                if response.status_code == 200:
+                    st.success(f"✅ SUCCESS: {driver_name} has been routed to the {payload['destination']} pipeline.")
                 else:
-                    st.warning(f"⚠️ n8n serveri xatosi: {n8n_response.text}")
+                    st.error(f"⚠️ SYSTEM ERROR: n8n responded with code {response.status_code}. Check backend.")
+            except requests.exceptions.Timeout:
+                st.error("⏳ TIMEOUT: n8n server took too long to respond. The system is protected from freezing. Try again.")
             except Exception as e:
-                st.error(f"❌ n8n aloqa uzildi: {e}")
-        else:
-            st.error(f"❌ Notion API xatosi: {notion_response.status_code}")
+                st.error(f"❌ CONNECTION ERROR: {e}")
