@@ -204,19 +204,6 @@ if submitted:
             # ---------------------------------------------------------
             WEBHOOK_URL = "https://recruiting909.app.n8n.cloud/webhook/b2efcc0b-1001-4936-8847-9a626d3dfe70"
 
-           # ... (Yuqoridagi kodlar o'zgarishsiz)
-
-# KESH VAQTINI 60 SONIYAGA TUSHIRDIK (YANGILANISH TEZLASHADI)
-@st.cache_data(ttl=60)
-def get_active_recruiters():
-    # ... (O'sha Notion kodlari)
-    # Statusni faqat 'Active' bo'lganlarini olish mantiqi Notion API'da qoladi
-    # Agar Notion'da Inactive qilsangiz, 60 soniya ichida App'dan avtomatik yo'qoladi.
-    return recruiters
-
-# ... (Forma qismi)
-
-# 4. YUBORISH MANTIG'IDA O'ZGARISH
             payload = {
                 "routing": "Internal Channel" if "Internal" in routing_destination else "Public Channel",
                 "driver_name": driver_name,
@@ -226,7 +213,7 @@ def get_active_recruiters():
                 "pay_rate": formatted_pay,
                 "location": location,
                 "ready_date": final_ready,
-                "recruiter_name": final_agent,  # O'zgartirildi: 'recruiter_name' deb yuboramiz
+                "agent": final_agent,
                 "loads": ", ".join(loads),
                 "weekly_miles": weekly_miles,
                 "eld_type": eld_friendly,
@@ -235,7 +222,6 @@ def get_active_recruiters():
                 "escrow": escrow,
                 "notes": notes
             }
-# ... (Qolgan qismi o'zgarishsiz)
             
             files = {}
             files["cdl_file"] = (cdl_front.name, cdl_front.getvalue(), cdl_front.type)
