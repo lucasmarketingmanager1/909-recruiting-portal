@@ -16,7 +16,7 @@ st.title("🚛 909 Recruiting Agency | HR Portal")
 st.markdown("---")
 
 # ==========================================
-# 2. MAXFIY KALITLAR VA NOTION MANTIG'I (Eski ishlaydigan koddan olindi)
+# 2. MAXFIY KALITLAR VA NOTION MANTIG'I
 # ==========================================
 NOTION_TOKEN = st.secrets.get("NOTION_TOKEN", "")
 MAIN_DATABASE_ID = st.secrets.get("DATABASE_ID", "")
@@ -46,7 +46,6 @@ def get_active_recruiters():
                 name_list = page["properties"]["Name"]["title"]
                 if name_list:
                     name = name_list[0]["plain_text"]
-                    # Diqqat: Sizning Notiondagi "Role" mantiqingiz qaytarildi!
                     role = page["properties"]["Role"]["select"]["name"]
                     if role == "Recruiter":
                         recruiters[name] = page["id"]
@@ -61,7 +60,6 @@ recruiter_options = list(recruiter_dict.keys())
 recruiter_options.sort()
 recruiter_options.append("Other (Type manually)")
 
-# BARCHA 48 OTR SHTATLAR
 US_STATES = [
     "AL - Alabama", "AR - Arkansas", "AZ - Arizona", "CA - California", "CO - Colorado", "CT - Connecticut", 
     "DE - Delaware", "FL - Florida", "GA - Georgia", "IA - Iowa", "ID - Idaho", "IL - Illinois", 
@@ -75,17 +73,17 @@ US_STATES = [
 ]
 
 # ==========================================
-# 3. MUKAMMAL FORMA (Yangi dizayn + Eski maydonlar)
+# 3. MUKAMMAL FORMA
 # ==========================================
 with st.form("driver_onboarding_form"):
     
     st.subheader("👤 Driver Details")
     driver_name = st.text_input("Driver's Full Name *")
-    phone_number = st.text_input("Phone Number *") # ESKI KODDAN QAYTARILDI
+    phone_number = st.text_input("Phone Number *") 
     
     col_type, col_exp = st.columns(2)
     with col_type:
-        driver_type = st.selectbox("Driver Type *", ["Solo ($500-$600)", "Team ($1100-$1200)", "Owner-Operator ($1100-$1200)"]) # ESKI KODDAN QAYTARILDI
+        driver_type = st.selectbox("Driver Type *", ["Solo ($500-$600)", "Team ($1100-$1200)", "Owner-Operator ($1100-$1200)"]) 
     with col_exp:
         experience_yrs = st.number_input("CDL-A Experience (Years) *", min_value=0, max_value=60, value=2, step=1)
     
@@ -133,10 +131,23 @@ with st.form("driver_onboarding_form"):
 
     st.markdown("---")
     
+    # ---------------------------------------------------------
+    # YANGILANGAN HUJJATLAR BO'LIMI (Dynamic Uploads)
+    # ---------------------------------------------------------
     st.subheader("📂 Document Uploads & Routing")
-    cdl_front = st.file_uploader("Upload CDL (Front) *", type=['png', 'jpg', 'jpeg'])
-    cdl_back = st.file_uploader("Upload CDL (Back) *", type=['png', 'jpg', 'jpeg'])
-    medical_card = st.file_uploader("Upload Medical Card *", type=['png', 'jpg', 'jpeg'])
+    
+    # 1. Majburiy hujjat
+    cdl_front = st.file_uploader("Upload CDL (Front) * [Majburiy]", type=['png', 'jpg', 'jpeg', 'pdf'])
+    
+    # 2. Asosiy ixtiyoriy hujjatlar
+    doc_col1, doc_col2 = st.columns(2)
+    with doc_col1:
+        cdl_back = st.file_uploader("Upload CDL (Back) [Ixtiyoriy]", type=['png', 'jpg', 'jpeg', 'pdf'])
+    with doc_col2:
+        medical_card = st.file_uploader("Upload Medical Card [Ixtiyoriy]", type=['png', 'jpg', 'jpeg', 'pdf'])
+        
+    # 3. KOPAYTIRILADIGAN IXTIYORIY HUJJATLAR (Cheksiz yuklash imkoniyati)
+    extra_files = st.file_uploader("➕ Boshqa qo'shimcha hujjatlar (MVR, SSN, h.k.) [Ixtiyoriy - Bir nechta tanlash mumkin]", type=['png', 'jpg', 'jpeg', 'pdf'], accept_multiple_files=True)
     
     routing_destination = st.radio(
         "🎯 Where should this driver be posted?",
@@ -150,12 +161,12 @@ with st.form("driver_onboarding_form"):
 # 4. EGIZAK YUBORISH MANTIGI (Notion + n8n)
 # ==========================================
 if submitted:
-    if not driver_name or not phone_number or not cdl_front or not cdl_back or not medical_card:
-        st.error("❌ ERROR: Driver's Name, Phone Number, and all 3 documents are mandatory!")
+    # FAQAT ism, raqam va CDL (Oldi) majburiy qilib belgilandi!
+    if not driver_name or not phone_number or not cdl_front:
+        st.error("❌ ERROR: Driver's Name, Phone Number, and CDL (Front) are mandatory!")
     else:
         with st.spinner("Encrypting and processing data..."):
             
-            # Custom maydonlarni tekshirish
             final_ready = ready_custom if (ready_choice == "Custom" and ready_custom.strip()) else ready_choice
             final_agent = agent_custom if (agent_choice == "Other (Type manually)" and agent_custom.strip()) else agent_choice
             final_work = work_custom if (work_choice == "Custom" and work_custom.strip()) else work_choice
@@ -178,7 +189,7 @@ if submitted:
                 "properties": {
                     "Driver Name": {"title": [{"text": {"content": driver_name}}]},
                     "Phone Number": {"phone_number": phone_number},
-                    "Driver Type": {"select": {"name": driver_type.split(" ")[0]}}, # Faqat Solo/Team so'zini ajratib oladi
+                    "Driver Type": {"select": {"name": driver_type.split(" ")[0]}}, 
                     "Status": {"status": {"name": "Lead"}}
                 }
             }
@@ -197,7 +208,6 @@ if submitted:
             # ---------------------------------------------------------
             # BQ-2: N8N WEBHOOK ORQALI TELEGRAM VA AUTOMATION'GA YUBORISH
             # ---------------------------------------------------------
-            # Sizning haqiqiy n8n Webhook manzilingiz eski koddan olindi!
             WEBHOOK_URL = "https://recruiting909.app.n8n.cloud/webhook/b2efcc0b-1001-4936-8847-9a626d3dfe70"
 
             payload = {
@@ -219,12 +229,19 @@ if submitted:
                 "notes": notes
             }
             
-            # Eski koddagi kabi .getvalue() funksiyasi ishlatildi!
-            files = {
-                "cdl_file": (cdl_front.name, cdl_front.getvalue(), cdl_front.type),
-                "cdl_back": (cdl_back.name, cdl_back.getvalue(), cdl_back.type),
-                "medical_card": (medical_card.name, medical_card.getvalue(), medical_card.type)
-            }
+            # RASMLARNI DINAMIK YUKLASH (Faqat yuklanganlarini n8n'ga yuboradi)
+            files = {}
+            files["cdl_file"] = (cdl_front.name, cdl_front.getvalue(), cdl_front.type)
+            
+            if cdl_back:
+                files["cdl_back"] = (cdl_back.name, cdl_back.getvalue(), cdl_back.type)
+            if medical_card:
+                files["medical_card"] = (medical_card.name, medical_card.getvalue(), medical_card.type)
+            
+            # Barcha qo'shimcha rasmlarni avtomatik o'qib, n8n'ga biriktirish
+            if extra_files:
+                for idx, extra_file in enumerate(extra_files):
+                    files[f"extra_doc_{idx+1}"] = (extra_file.name, extra_file.getvalue(), extra_file.type)
             
             try:
                 response = requests.post(WEBHOOK_URL, data=payload, files=files, timeout=15)
