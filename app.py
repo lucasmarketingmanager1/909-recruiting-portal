@@ -15,14 +15,13 @@ st.markdown("---")
 # ==========================================
 # 🧠 NOTION API INTEGRATSIYASI (TEAM LEADS)
 # ==========================================
-@st.cache_data(ttl=300)  # Har 5 daqiqada Notion'dan yangilab turadi, app qotmaydi
+@st.cache_data(ttl=300)
 def get_active_agents():
-    # Streamlit Secrets'dan kalitlarni olamiz
     NOTION_TOKEN = st.secrets.get("NOTION_TOKEN", "")
     DATABASE_ID = st.secrets.get("TEAM_LEADS_DB_ID", "")
     
     if not NOTION_TOKEN or not DATABASE_ID:
-        return ["⚠️ Setup Notion Secrets", "Other (Type manually)"]
+        return ["⚠️ Setup Notion Secrets", "Other"]
 
     url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
     headers = {
@@ -34,7 +33,7 @@ def get_active_agents():
     try:
         res = requests.post(url, headers=headers, json={})
         if res.status_code != 200:
-            return ["⚠️ Notion API Error", "Other (Type manually)"]
+            return ["⚠️ Notion API Error", "Other"]
         
         data = res.json()
         agents = []
@@ -42,12 +41,10 @@ def get_active_agents():
         for row in data.get("results", []):
             props = row.get("properties", {})
             try:
-                # Ismni ajratib olish (Ustun nomi Notion'da "Name" bo'lishi shart)
                 name_obj = props.get("Name", {}).get("title", [])
                 if not name_obj: continue
                 name = name_obj[0].get("plain_text", "")
 
-                # Statusni ajratib olish (Ustun nomi Notion'da "Status" bo'lishi shart)
                 status_obj = props.get("Status", {})
                 if "select" in status_obj and status_obj["select"]:
                     status = status_obj["select"].get("name", "")
@@ -56,28 +53,23 @@ def get_active_agents():
                 else:
                     status = ""
 
-                # Faqat "Active" agentlarni qo'shish
                 if status.lower() == "active":
                     agents.append(name)
             except Exception:
                 pass
                 
         if not agents:
-            return ["No Active Agents Found", "Other (Type manually)"]
+            return ["No Active Agents Found", "Other"]
             
-        # Agentlarni alifbo tartibida taxlash
         agents.sort()
-        agents.append("Other (Type manually)")
+        agents.append("Other")
         return agents
     except:
-        return ["⚠️ Network Error", "Other (Type manually)"]
+        return ["⚠️ Network Error", "Other"]
 
-# Avtomatik ro'yxatni yuklash
 ACTIVE_AGENTS = get_active_agents()
 
-# ==========================================
-# BARCHA 48 OTR SHTATLAR RO'YXATI
-# ==========================================
+# BARCHA 48 OTR SHTATLAR
 US_STATES = [
     "AL - Alabama", "AR - Arkansas", "AZ - Arizona", "CA - California", "CO - Colorado", "CT - Connecticut", 
     "DE - Delaware", "FL - Florida", "GA - Georgia", "IA - Iowa", "ID - Idaho", "IL - Illinois", 
@@ -105,17 +97,18 @@ with st.form("driver_onboarding_form"):
     
     location = st.selectbox("Current Location (State) *", US_STATES)
     
-    # DINAMIK: Ready to Start
-    ready_choice = st.selectbox("Ready to Start *", ["ASAP", "Within 3 days", "Next week", "Custom (Type manually)"])
-    ready_custom = ""
-    if ready_choice == "Custom (Type manually)":
-        ready_custom = st.text_input("✍️ Type your custom ready date:")
+    # MUAMMO YECHIMI: Yonma-yon joylashtirilgan doimiy qutilar (Zero-lag saqlanadi)
+    ready_col1, ready_col2 = st.columns(2)
+    with ready_col1:
+        ready_choice = st.selectbox("Ready to Start *", ["ASAP", "Within 3 days", "Next week", "Custom"])
+    with ready_col2:
+        ready_custom = st.text_input("✍️ If Custom, type here:", placeholder="e.g. in 5 days")
     
-    # DINAMIK: Agent (Notion'dan ulanadi)
-    agent_choice = st.selectbox("Selling Agent / Recruiter Name *", ACTIVE_AGENTS)
-    agent_custom = ""
-    if agent_choice == "Other (Type manually)":
-        agent_custom = st.text_input("✍️ Type Agent's name:")
+    agent_col1, agent_col2 = st.columns(2)
+    with agent_col1:
+        agent_choice = st.selectbox("Selling Agent Name *", ACTIVE_AGENTS)
+    with agent_col2:
+        agent_custom = st.text_input("✍️ If Other, type Agent name:")
 
     st.markdown("---")
 
@@ -125,20 +118,17 @@ with st.form("driver_onboarding_form"):
     
     eld_friendly = st.selectbox("ELD Friendly? *", ["Yes (ELD Friendly)", "Negotiable", "No (Paper logs strictly)"])
     
-    op_col1, op_col2 = st.columns(2)
-    with op_col1:
-        # DINAMIK: Work Time
-        work_choice = st.selectbox("Work Time (OTR)", ["2 weeks out", "3 weeks out", "4+ weeks out", "Custom (Type manually)"])
-        work_custom = ""
-        if work_choice == "Custom (Type manually)":
-            work_custom = st.text_input("✍️ Type your custom work time:")
+    work_col1, work_col2 = st.columns(2)
+    with work_col1:
+        work_choice = st.selectbox("Work Time (OTR)", ["2 weeks out", "3 weeks out", "4+ weeks out", "Custom"])
+    with work_col2:
+        work_custom = st.text_input("✍️ If Custom, type work time:", placeholder="e.g. 6 weeks out")
             
-    with op_col2:
-        # DINAMIK: Home Time
-        home_choice = st.selectbox("Home Time Requirements", ["2-3 Days", "4-5 Days", "1 Full Week", "Custom (Type manually)"])
-        home_custom = ""
-        if home_choice == "Custom (Type manually)":
-            home_custom = st.text_input("✍️ Type your custom home time:")
+    home_col1, home_col2 = st.columns(2)
+    with home_col1:
+        home_choice = st.selectbox("Home Time Requirements", ["2-3 Days", "4-5 Days", "1 Full Week", "Custom"])
+    with home_col2:
+        home_custom = st.text_input("✍️ If Custom, type home time:", placeholder="e.g. 10 days")
         
     escrow = st.selectbox("Escrow Agreement", ["Agreed (Standard deductions)", "Needs Negotiation", "Refused"])
 
@@ -163,11 +153,11 @@ if submitted:
     else:
         with st.spinner("Encrypting and sending to 909 RA Database..."):
             
-            # Dinamik maydonlarni tekshirish (Agar "Custom" tanlansa, qo'lda yozilganini oladi)
-            final_ready = ready_custom if ready_choice == "Custom (Type manually)" else ready_choice
-            final_agent = agent_custom if agent_choice == "Other (Type manually)" else agent_choice
-            final_work = work_custom if work_choice == "Custom (Type manually)" else work_choice
-            final_home = home_custom if home_choice == "Custom (Type manually)" else home_choice
+            # ORQA FONDAGI MANTIQ: Agar ro'yxatdan "Custom/Other" tanlangan bo'lsa va yonidagi qutiga yozilgan bo'lsa, o'shani oladi
+            final_ready = ready_custom if (ready_choice == "Custom" and ready_custom.strip()) else ready_choice
+            final_agent = agent_custom if (agent_choice == "Other" and agent_custom.strip()) else agent_choice
+            final_work = work_custom if (work_choice == "Custom" and work_custom.strip()) else work_choice
+            final_home = home_custom if (home_choice == "Custom" and home_custom.strip()) else home_choice
             
             WEBHOOK_URL = "SIZNING_N8N_WEBHOOK_URL_MANZILINGIZNI_SHU_YERGA_QO'YING"
             
