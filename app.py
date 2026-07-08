@@ -12,6 +12,72 @@ st.markdown("""
 st.title("🚛 909 Recruiting Agency | HR Portal")
 st.markdown("---")
 
+# ==========================================
+# 🧠 NOTION API INTEGRATSIYASI (TEAM LEADS)
+# ==========================================
+@st.cache_data(ttl=300)  # Har 5 daqiqada Notion'dan yangilab turadi, app qotmaydi
+def get_active_agents():
+    # Streamlit Secrets'dan kalitlarni olamiz
+    NOTION_TOKEN = st.secrets.get("NOTION_TOKEN", "")
+    DATABASE_ID = st.secrets.get("TEAM_LEADS_DB_ID", "")
+    
+    if not NOTION_TOKEN or not DATABASE_ID:
+        return ["⚠️ Setup Notion Secrets", "Other (Type manually)"]
+
+    url = f"https://api.notion.com/v1/databases/{DATABASE_ID}/query"
+    headers = {
+        "Authorization": f"Bearer {NOTION_TOKEN}",
+        "Notion-Version": "2022-06-28",
+        "Content-Type": "application/json"
+    }
+    
+    try:
+        res = requests.post(url, headers=headers, json={})
+        if res.status_code != 200:
+            return ["⚠️ Notion API Error", "Other (Type manually)"]
+        
+        data = res.json()
+        agents = []
+        
+        for row in data.get("results", []):
+            props = row.get("properties", {})
+            try:
+                # Ismni ajratib olish (Ustun nomi Notion'da "Name" bo'lishi shart)
+                name_obj = props.get("Name", {}).get("title", [])
+                if not name_obj: continue
+                name = name_obj[0].get("plain_text", "")
+
+                # Statusni ajratib olish (Ustun nomi Notion'da "Status" bo'lishi shart)
+                status_obj = props.get("Status", {})
+                if "select" in status_obj and status_obj["select"]:
+                    status = status_obj["select"].get("name", "")
+                elif "status" in status_obj and status_obj["status"]:
+                    status = status_obj["status"].get("name", "")
+                else:
+                    status = ""
+
+                # Faqat "Active" agentlarni qo'shish
+                if status.lower() == "active":
+                    agents.append(name)
+            except Exception:
+                pass
+                
+        if not agents:
+            return ["No Active Agents Found", "Other (Type manually)"]
+            
+        # Agentlarni alifbo tartibida taxlash
+        agents.sort()
+        agents.append("Other (Type manually)")
+        return agents
+    except:
+        return ["⚠️ Network Error", "Other (Type manually)"]
+
+# Avtomatik ro'yxatni yuklash
+ACTIVE_AGENTS = get_active_agents()
+
+# ==========================================
+# BARCHA 48 OTR SHTATLAR RO'YXATI
+# ==========================================
 US_STATES = [
     "AL - Alabama", "AR - Arkansas", "AZ - Arizona", "CA - California", "CO - Colorado", "CT - Connecticut", 
     "DE - Delaware", "FL - Florida", "GA - Georgia", "IA - Iowa", "ID - Idaho", "IL - Illinois", 
@@ -24,15 +90,11 @@ US_STATES = [
     "WV - West Virginia", "WY - Wyoming"
 ]
 
-# RECRUITERLAR RO'YXATI (Vaqtincha shu yerda turadi, keyingi qadamda Notion'dan tortadigan qilamiz)
-ACTIVE_AGENTS = ["Jason", "Adam", "Martin", "Lucas", "Stan", "Other (Type manually)"]
-
 with st.form("driver_onboarding_form"):
     
     st.subheader("👤 Driver Details")
     driver_name = st.text_input("Driver's Full Name *")
     
-    # 1. Experience - Istalgan raqamni yozish mumkin
     experience_yrs = st.number_input("CDL-A Experience (Years) *", min_value=0, max_value=60, value=2, step=1)
     
     pay_col1, pay_col2 = st.columns(2)
@@ -43,13 +105,17 @@ with st.form("driver_onboarding_form"):
     
     location = st.selectbox("Current Location (State) *", US_STATES)
     
-    # 2. Ready to Start (Custom opsiyasi bilan)
+    # DINAMIK: Ready to Start
     ready_choice = st.selectbox("Ready to Start *", ["ASAP", "Within 3 days", "Next week", "Custom (Type manually)"])
-    ready_custom = st.text_input("If 'Custom', specify ready date:", placeholder="e.g., in 5 days, next month...")
+    ready_custom = ""
+    if ready_choice == "Custom (Type manually)":
+        ready_custom = st.text_input("✍️ Type your custom ready date:")
     
-    # 3. Agentlar (Dynamic list uchun tayyorlangan)
+    # DINAMIK: Agent (Notion'dan ulanadi)
     agent_choice = st.selectbox("Selling Agent / Recruiter Name *", ACTIVE_AGENTS)
-    agent_custom = st.text_input("If 'Other', type Agent's name:")
+    agent_custom = ""
+    if agent_choice == "Other (Type manually)":
+        agent_custom = st.text_input("✍️ Type Agent's name:")
 
     st.markdown("---")
 
@@ -57,18 +123,22 @@ with st.form("driver_onboarding_form"):
     loads = st.multiselect("Equipment / Loads *", ["Reefer", "Dry Van", "Flatbed", "Step Deck", "Box Truck", "Power Only"])
     weekly_miles = st.number_input("Target Weekly Miles", min_value=1000, max_value=4000, value=2500, step=100)
     
-    # 4. ELD Friendly
     eld_friendly = st.selectbox("ELD Friendly? *", ["Yes (ELD Friendly)", "Negotiable", "No (Paper logs strictly)"])
     
     op_col1, op_col2 = st.columns(2)
     with op_col1:
-        # 6. Work Time (Custom opsiyasi bilan)
+        # DINAMIK: Work Time
         work_choice = st.selectbox("Work Time (OTR)", ["2 weeks out", "3 weeks out", "4+ weeks out", "Custom (Type manually)"])
-        work_custom = st.text_input("If 'Custom', specify work time:", placeholder="e.g., 6 weeks out")
+        work_custom = ""
+        if work_choice == "Custom (Type manually)":
+            work_custom = st.text_input("✍️ Type your custom work time:")
+            
     with op_col2:
-        # 5. Home Time (Custom opsiyasi bilan)
+        # DINAMIK: Home Time
         home_choice = st.selectbox("Home Time Requirements", ["2-3 Days", "4-5 Days", "1 Full Week", "Custom (Type manually)"])
-        home_custom = st.text_input("If 'Custom', specify home time:", placeholder="e.g., 10 days")
+        home_custom = ""
+        if home_choice == "Custom (Type manually)":
+            home_custom = st.text_input("✍️ Type your custom home time:")
         
     escrow = st.selectbox("Escrow Agreement", ["Agreed (Standard deductions)", "Needs Negotiation", "Refused"])
 
@@ -93,7 +163,7 @@ if submitted:
     else:
         with st.spinner("Encrypting and sending to 909 RA Database..."):
             
-            # Mantiqiy saralash (Agar Custom tanlangan bo'lsa, text_input dagi so'zni oladi)
+            # Dinamik maydonlarni tekshirish (Agar "Custom" tanlansa, qo'lda yozilganini oladi)
             final_ready = ready_custom if ready_choice == "Custom (Type manually)" else ready_choice
             final_agent = agent_custom if agent_choice == "Other (Type manually)" else agent_choice
             final_work = work_custom if work_choice == "Custom (Type manually)" else work_choice
