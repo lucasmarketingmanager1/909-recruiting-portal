@@ -73,9 +73,9 @@ US_STATES = [
 ]
 
 # ==========================================
-# 3. MUKAMMAL FORMA
+# 3. MUKAMMAL FORMA (clear_on_submit qoidasi qo'shildi)
 # ==========================================
-with st.form("driver_onboarding_form"):
+with st.form("driver_onboarding_form", clear_on_submit=True):
     
     st.subheader("👤 Driver Details")
     driver_name = st.text_input("Driver's Full Name *")
@@ -131,22 +131,16 @@ with st.form("driver_onboarding_form"):
 
     st.markdown("---")
     
-    # ---------------------------------------------------------
-    # YANGILANGAN HUJJATLAR BO'LIMI (Dynamic Uploads)
-    # ---------------------------------------------------------
     st.subheader("📂 Document Uploads & Routing")
     
-    # 1. Majburiy hujjat
     cdl_front = st.file_uploader("Upload CDL (Front) * [Majburiy]", type=['png', 'jpg', 'jpeg', 'pdf'])
     
-    # 2. Asosiy ixtiyoriy hujjatlar
     doc_col1, doc_col2 = st.columns(2)
     with doc_col1:
         cdl_back = st.file_uploader("Upload CDL (Back) [Ixtiyoriy]", type=['png', 'jpg', 'jpeg', 'pdf'])
     with doc_col2:
         medical_card = st.file_uploader("Upload Medical Card [Ixtiyoriy]", type=['png', 'jpg', 'jpeg', 'pdf'])
         
-    # 3. KOPAYTIRILADIGAN IXTIYORIY HUJJATLAR (Cheksiz yuklash imkoniyati)
     extra_files = st.file_uploader("➕ Boshqa qo'shimcha hujjatlar (MVR, SSN, h.k.) [Ixtiyoriy - Bir nechta tanlash mumkin]", type=['png', 'jpg', 'jpeg', 'pdf'], accept_multiple_files=True)
     
     routing_destination = st.radio(
@@ -161,7 +155,6 @@ with st.form("driver_onboarding_form"):
 # 4. EGIZAK YUBORISH MANTIGI (Notion + n8n)
 # ==========================================
 if submitted:
-    # FAQAT ism, raqam va CDL (Oldi) majburiy qilib belgilandi!
     if not driver_name or not phone_number or not cdl_front:
         st.error("❌ ERROR: Driver's Name, Phone Number, and CDL (Front) are mandatory!")
     else:
@@ -189,7 +182,8 @@ if submitted:
                 "properties": {
                     "Driver Name": {"title": [{"text": {"content": driver_name}}]},
                     "Phone Number": {"phone_number": phone_number},
-                    "Driver Type": {"select": {"name": driver_type.split(" ")[0]}}, 
+                    # XATO BARTARAF ETILDI: Qirqish olib tashlandi, endi to'liq narx va nom boradi
+                    "Driver Type": {"select": {"name": driver_type}}, 
                     "Status": {"status": {"name": "Lead"}}
                 }
             }
@@ -229,7 +223,6 @@ if submitted:
                 "notes": notes
             }
             
-            # RASMLARNI DINAMIK YUKLASH (Faqat yuklanganlarini n8n'ga yuboradi)
             files = {}
             files["cdl_file"] = (cdl_front.name, cdl_front.getvalue(), cdl_front.type)
             
@@ -238,7 +231,6 @@ if submitted:
             if medical_card:
                 files["medical_card"] = (medical_card.name, medical_card.getvalue(), medical_card.type)
             
-            # Barcha qo'shimcha rasmlarni avtomatik o'qib, n8n'ga biriktirish
             if extra_files:
                 for idx, extra_file in enumerate(extra_files):
                     files[f"extra_doc_{idx+1}"] = (extra_file.name, extra_file.getvalue(), extra_file.type)
@@ -246,7 +238,7 @@ if submitted:
             try:
                 response = requests.post(WEBHOOK_URL, data=payload, files=files, timeout=15)
                 if response.status_code == 200:
-                    st.info(f"🚀 Ma'lumotlar n8n markaziga muvaffaqiyatli yetib bordi!")
+                    st.info(f"🚀 Ma'lumotlar n8n markaziga muvaffaqiyatli yetib bordi! Forma yangilandi.")
                 else:
                     st.error(f"⚠️ n8n tizim xatosi: {response.text}")
             except requests.exceptions.Timeout:
