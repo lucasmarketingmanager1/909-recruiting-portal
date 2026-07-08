@@ -1,25 +1,14 @@
 import streamlit as st
 import requests
 
-# ==========================================
-# 1. SAHIFA SOZLAMALARI VA DIZAYN
-# ==========================================
+# Sahifa sozlamalari
 st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🚛", layout="centered")
 
-st.markdown("""
-<style>
-    .stButton>button { width: 100%; border-radius: 5px; font-weight: bold; padding: 10px; background-color: #0b1f3f; color: white;}
-</style>
-""", unsafe_allow_html=True)
+st.title("🚛 909 Recruiting Agency — Driver Entry Portal")
 
-st.title("🚛 909 Recruiting Agency | HR Portal")
-st.markdown("---")
-
-# ==========================================
-# 2. MAXFIY KALITLAR VA NOTION MANTIG'I
-# ==========================================
-NOTION_TOKEN = st.secrets.get("NOTION_TOKEN", "")
-MAIN_DATABASE_ID = st.secrets.get("DATABASE_ID", "")
+# Maxfiy kalitlar
+NOTION_TOKEN = st.secrets["NOTION_TOKEN"]
+MAIN_DATABASE_ID = st.secrets["DATABASE_ID"]
 TEAM_DATABASE_ID = st.secrets.get("TEAM_DATABASE_ID", "")
 
 headers = {
@@ -28,220 +17,85 @@ headers = {
     "Notion-Version": "2022-06-28"
 }
 
-@st.cache_data(ttl=300)
+# Recruiterlar ro'yxati (Notiondan)
+@st.cache_data(ttl=60)
 def get_active_recruiters():
-    fallback = {"Adam": "", "Jason": "", "Martin": "", "Tom": "", "Jacob": "", "Eric": "", "Lucas": ""}
-    if not TEAM_DATABASE_ID or not NOTION_TOKEN:
-        return fallback
-        
+    if not TEAM_DATABASE_ID: return ["Adam", "Jason", "Martin", "Lucas"]
     url = f"https://api.notion.com/v1/databases/{TEAM_DATABASE_ID}/query"
     payload = {"filter": {"property": "Status", "status": {"equals": "Active"}}}
-    
     try:
         response = requests.post(url, headers=headers, json=payload)
         if response.status_code == 200:
             results = response.json().get("results", [])
-            recruiters = {}
-            for page in results:
-                name_list = page["properties"]["Name"]["title"]
-                if name_list:
-                    name = name_list[0]["plain_text"]
-                    role = page["properties"]["Role"]["select"]["name"]
-                    if role == "Recruiter":
-                        recruiters[name] = page["id"]
-            if recruiters:
-                return recruiters
-        return fallback
-    except:
-        return fallback
+            recruiters = {page["properties"]["Name"]["title"][0]["plain_text"]: page["id"] 
+                          for page in results if page["properties"]["Role"]["select"]["name"] == "Recruiter"}
+            return recruiters
+        return {"Adam": "", "Jason": "", "Lucas": ""}
+    except: return {"Adam": "", "Jason": "", "Lucas": ""}
 
 recruiter_dict = get_active_recruiters()
-recruiter_options = list(recruiter_dict.keys())
-recruiter_options.sort()
-recruiter_options.append("Other (Type manually)")
+recruiter_options = list(recruiter_dict.keys()) + ["Other (Type manually)"]
 
-US_STATES = [
-    "AL - Alabama", "AR - Arkansas", "AZ - Arizona", "CA - California", "CO - Colorado", "CT - Connecticut", 
-    "DE - Delaware", "FL - Florida", "GA - Georgia", "IA - Iowa", "ID - Idaho", "IL - Illinois", 
-    "IN - Indiana", "KS - Kansas", "KY - Kentucky", "LA - Louisiana", "MA - Massachusetts", "MD - Maryland", 
-    "ME - Maine", "MI - Michigan", "MN - Minnesota", "MO - Missouri", "MS - Mississippi", "MT - Montana", 
-    "NC - North Carolina", "ND - North Dakota", "NE - Nebraska", "NH - New Hampshire", "NJ - New Jersey", 
-    "NM - New Mexico", "NV - Nevada", "NY - New York", "OH - Ohio", "OK - Oklahoma", "OR - Oregon", 
-    "PA - Pennsylvania", "RI - Rhode Island", "SC - South Carolina", "SD - South Dakota", "TN - Tennessee", 
-    "TX - Texas", "UT - Utah", "VA - Virginia", "VT - Vermont", "WA - Washington", "WI - Wisconsin", 
-    "WV - West Virginia", "WY - Wyoming"
-]
-
-# ==========================================
-# 3. MUKAMMAL FORMA (clear_on_submit qoidasi qo'shildi)
-# ==========================================
-with st.form("driver_onboarding_form", clear_on_submit=True):
-    
+# Forma
+with st.form("driver_form", clear_on_submit=True):
     st.subheader("👤 Driver Details")
     driver_name = st.text_input("Driver's Full Name *")
-    phone_number = st.text_input("Phone Number *") 
+    phone = st.text_input("Phone Number *")
     
-    col_type, col_exp = st.columns(2)
-    with col_type:
-        driver_type = st.selectbox("Driver Type *", ["Solo ($500-$600)", "Team ($1100-$1200)", "Owner-Operator ($1100-$1200)"]) 
-    with col_exp:
-        experience_yrs = st.number_input("CDL-A Experience (Years) *", min_value=0, max_value=60, value=2, step=1)
-    
-    pay_col1, pay_col2 = st.columns(2)
-    with pay_col1:
-        pay_type = st.selectbox("Pay Structure *", ["CPM", "Percentage (%)", "Flat Weekly ($)"])
-    with pay_col2:
-        pay_amount = st.number_input("Amount *", min_value=1, max_value=5000, value=65, step=1)
-    
-    location = st.selectbox("Current Location (State) *", US_STATES)
-    
-    ready_col1, ready_col2 = st.columns(2)
-    with ready_col1:
-        ready_choice = st.selectbox("Ready to Start *", ["ASAP", "Within 3 days", "Next week", "Custom"])
-    with ready_col2:
-        ready_custom = st.text_input("✍️ If Custom, type here:", placeholder="e.g. in 5 days")
-    
-    agent_col1, agent_col2 = st.columns(2)
-    with agent_col1:
-        agent_choice = st.selectbox("Selling Agent Name *", recruiter_options)
-    with agent_col2:
-        agent_custom = st.text_input("✍️ If Other, type Agent name:")
-
-    st.markdown("---")
-
-    st.subheader("📊 Operational & Target Setup")
-    loads = st.multiselect("Equipment / Loads *", ["Reefer", "Dry Van", "Flatbed", "Step Deck", "Box Truck", "Power Only"])
-    weekly_miles = st.number_input("Target Weekly Miles", min_value=1000, max_value=4000, value=2500, step=100)
-    
-    eld_friendly = st.selectbox("ELD Friendly? *", ["Yes (ELD Friendly)", "Negotiable", "No (Paper logs strictly)"])
-    
-    work_col1, work_col2 = st.columns(2)
-    with work_col1:
-        work_choice = st.selectbox("Work Time (OTR)", ["2 weeks out", "3 weeks out", "4+ weeks out", "Custom"])
-    with work_col2:
-        work_custom = st.text_input("✍️ If Custom, type work time:", placeholder="e.g. 6 weeks out")
-            
-    home_col1, home_col2 = st.columns(2)
-    with home_col1:
-        home_choice = st.selectbox("Home Time Requirements", ["2-3 Days", "4-5 Days", "1 Full Week", "Custom"])
-    with home_col2:
-        home_custom = st.text_input("✍️ If Custom, type home time:", placeholder="e.g. 10 days")
+    col1, col2 = st.columns(2)
+    with col1:
+        driver_type = st.selectbox("Driver Type", ["Solo ($500-$600)", "Team ($1100-$1200)", "Owner-Operator ($1100-$1200)"])
+    with col2:
+        recruiter = st.selectbox("Selling Agent / Recruiter *", recruiter_options)
         
-    escrow = st.selectbox("Escrow Agreement", ["Agreed (Standard deductions)", "Needs Negotiation", "Refused"])
-
-    st.markdown("---")
+    experience = st.number_input("Experience (Years)", min_value=0, max_value=50, value=2)
+    miles = st.text_input("Weekly Miles", value="3000+ miles")
+    eld = st.selectbox("ELD Experience", ["Yes (ELD Friendly)", "Negotiable", "No (Paper logs)"])
     
-    st.subheader("📂 Document Uploads & Routing")
-    
-    cdl_front = st.file_uploader("Upload CDL (Front) * [Majburiy]", type=['png', 'jpg', 'jpeg', 'pdf'])
-    
-    doc_col1, doc_col2 = st.columns(2)
-    with doc_col1:
-        cdl_back = st.file_uploader("Upload CDL (Back) [Ixtiyoriy]", type=['png', 'jpg', 'jpeg', 'pdf'])
-    with doc_col2:
-        medical_card = st.file_uploader("Upload Medical Card [Ixtiyoriy]", type=['png', 'jpg', 'jpeg', 'pdf'])
+    col3, col4 = st.columns(2)
+    with col3:
+        work_time = st.text_input("Work Time (OTR)", value="3 weeks out")
+        pay = st.text_input("Pay Structure", placeholder="e.g. 65 CPM or 30%")
+    with col4:
+        home_time = st.text_input("Home Time", value="3-4 days")
+        escrow = st.selectbox("Escrow", ["Agreed", "Needs Negotiation", "Refused"])
         
-    extra_files = st.file_uploader("➕ Boshqa qo'shimcha hujjatlar (MVR, SSN, h.k.) [Ixtiyoriy - Bir nechta tanlash mumkin]", type=['png', 'jpg', 'jpeg', 'pdf'], accept_multiple_files=True)
-    
-    routing_destination = st.radio(
-        "🎯 Where should this driver be posted?",
-        ["🟢 Internal Channel (Contracted Carrier Priority)", "🔵 Public Channel (Open Market)"]
-    )
-    notes = st.text_area("✍️ Additional Notes (MVR issues, preferred routes, etc.)")
+    location = st.text_input("Location (State)")
+    ready = st.text_input("Ready Date", value="ASAP")
+    notes = st.text_area("Additional Notes")
 
-    submitted = st.form_submit_button("🚀 PROCESS DRIVER TO SYSTEM")
+    st.subheader("📎 Document Uploads")
+    cdl_front = st.file_uploader("CDL Front *", type=["png", "jpg", "jpeg"])
+    cdl_back = st.file_uploader("CDL Back (Optional)", type=["png", "jpg", "jpeg"])
+    med_card = st.file_uploader("Medical Card (Optional)", type=["png", "jpg", "jpeg"])
+    extra = st.file_uploader("Extra Docs (Optional - Multiple)", accept_multiple_files=True)
 
-# ==========================================
-# 4. EGIZAK YUBORISH MANTIGI (Notion + n8n)
-# ==========================================
+    submitted = st.form_submit_button("🚀 PROCESS DRIVER")
+
 if submitted:
-    if not driver_name or not phone_number or not cdl_front:
-        st.error("❌ ERROR: Driver's Name, Phone Number, and CDL (Front) are mandatory!")
+    if not driver_name or not phone or not cdl_front:
+        st.error("❌ Driver Name, Phone, and CDL Front are mandatory!")
     else:
-        with st.spinner("Encrypting and processing data..."):
-            
-            final_ready = ready_custom if (ready_choice == "Custom" and ready_custom.strip()) else ready_choice
-            final_agent = agent_custom if (agent_choice == "Other (Type manually)" and agent_custom.strip()) else agent_choice
-            final_work = work_custom if (work_choice == "Custom" and work_custom.strip()) else work_choice
-            final_home = home_custom if (home_choice == "Custom" and home_custom.strip()) else home_choice
-            
-            if pay_type == "CPM":
-                formatted_pay = f"{pay_amount} CPM"
-            elif pay_type == "Percentage (%)":
-                formatted_pay = f"{pay_amount}%"
-            else:
-                formatted_pay = f"${pay_amount} / Week"
-
-            # ---------------------------------------------------------
-            # BQ-1: NOTION MASTER CRM'GA TO'G'RIDAN-TO'G'RI YOZISH
-            # ---------------------------------------------------------
-            recruiter_id = recruiter_dict.get(agent_choice, "") if agent_choice != "Other (Type manually)" else ""
-            
-            notion_data = {
-                "parent": {"database_id": MAIN_DATABASE_ID},
-                "properties": {
-                    "Driver Name": {"title": [{"text": {"content": driver_name}}]},
-                    "Phone Number": {"phone_number": phone_number},
-                    # XATO BARTARAF ETILDI: Qirqish olib tashlandi, endi to'liq narx va nom boradi
-                    "Driver Type": {"select": {"name": driver_type}}, 
-                    "Status": {"status": {"name": "Lead"}}
-                }
+        # Notionga yozish
+        notion_payload = {
+            "parent": {"database_id": MAIN_DATABASE_ID},
+            "properties": {
+                "Driver Name": {"title": [{"text": {"content": driver_name}}]},
+                "Phone Number": {"phone_number": phone},
+                "Driver Type": {"select": {"name": driver_type}},
+                "Status": {"status": {"name": "Lead"}}
             }
-            if recruiter_id:
-                notion_data["properties"]["Recruiter"] = {"relation": [{"id": recruiter_id}]}
-                
-            try:
-                notion_res = requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_data)
-                if notion_res.status_code in [200, 201]:
-                    st.success(f"✅ {driver_name} ma'lumotlari Notion CRM'ga muvaffaqiyatli saqlandi!")
-                else:
-                    st.warning(f"⚠️ Notion API xatosi: {notion_res.status_code} - Iltimos, sozlamalarni tekshiring.")
-            except Exception as e:
-                st.warning(f"⚠️ Notion bilan ulanishda xato: {e}")
-
-            # ---------------------------------------------------------
-            # BQ-2: N8N WEBHOOK ORQALI TELEGRAM VA AUTOMATION'GA YUBORISH
-            # ---------------------------------------------------------
-            WEBHOOK_URL = "https://recruiting909.app.n8n.cloud/webhook/b2efcc0b-1001-4936-8847-9a626d3dfe70"
-
-            payload = {
-                "routing": "Internal Channel" if "Internal" in routing_destination else "Public Channel",
-                "driver_name": driver_name,
-                "phone_number": phone_number,
-                "driver_type": driver_type,
-                "experience": f"{experience_yrs} Years",
-                "pay_rate": formatted_pay,
-                "location": location,
-                "ready_date": final_ready,
-                "agent": final_agent,
-                "loads": ", ".join(loads),
-                "weekly_miles": weekly_miles,
-                "eld_type": eld_friendly,
-                "work_time": final_work,
-                "home_time": final_home,
-                "escrow": escrow,
-                "notes": notes
-            }
-            
-            files = {}
-            files["cdl_file"] = (cdl_front.name, cdl_front.getvalue(), cdl_front.type)
-            
-            if cdl_back:
-                files["cdl_back"] = (cdl_back.name, cdl_back.getvalue(), cdl_back.type)
-            if medical_card:
-                files["medical_card"] = (medical_card.name, medical_card.getvalue(), medical_card.type)
-            
-            if extra_files:
-                for idx, extra_file in enumerate(extra_files):
-                    files[f"extra_doc_{idx+1}"] = (extra_file.name, extra_file.getvalue(), extra_file.type)
-            
-            try:
-                response = requests.post(WEBHOOK_URL, data=payload, files=files, timeout=15)
-                if response.status_code == 200:
-                    st.info(f"🚀 Ma'lumotlar n8n markaziga muvaffaqiyatli yetib bordi! Forma yangilandi.")
-                else:
-                    st.error(f"⚠️ n8n tizim xatosi: {response.text}")
-            except requests.exceptions.Timeout:
-                st.error("⏳ TIMEOUT: n8n server javob bermadi.")
-            except Exception as e:
-                st.error(f"❌ n8n aloqa uzildi: {e}")
+        }
+        if recruiter in recruiter_dict:
+            notion_payload["properties"]["Recruiter"] = {"relation": [{"id": recruiter_dict[recruiter]}]}
+        
+        requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_payload)
+        
+        # n8n'ga yuborish
+        webhook_url = "https://recruiting909.app.n8n.cloud/webhook/b2efcc0b-1001-4936-8847-9a626d3dfe70"
+        files = {"cdl_file": (cdl_front.name, cdl_front.getvalue(), cdl_front.type)}
+        if cdl_back: files["cdl_back"] = (cdl_back.name, cdl_back.getvalue(), cdl_back.type)
+        if med_card: files["med_card"] = (med_card.name, med_card.getvalue(), med_card.type)
+        
+        requests.post(webhook_url, data={"driver_name": driver_name, "recruiter_name": recruiter}, files=files)
+        st.success("✅ Driver processed successfully!")
