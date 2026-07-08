@@ -4,6 +4,13 @@ import requests
 # Sahifa sozlamalari
 st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🚛", layout="centered")
 
+# CSS Dizayn
+st.markdown("""
+<style>
+    .stButton>button { width: 100%; border-radius: 5px; font-weight: bold; padding: 10px; background-color: #0b1f3f; color: white;}
+</style>
+""", unsafe_allow_html=True)
+
 st.title("🚛 909 Recruiting Agency — Driver Entry Portal")
 
 # Maxfiy kalitlar
@@ -17,10 +24,10 @@ headers = {
     "Notion-Version": "2022-06-28"
 }
 
-# Recruiterlar ro'yxati (Notiondan)
+# Notion'dan Recruiter'larni tortish
 @st.cache_data(ttl=60)
 def get_active_recruiters():
-    if not TEAM_DATABASE_ID: return ["Adam", "Jason", "Martin", "Lucas"]
+    if not TEAM_DATABASE_ID: return {"Adam": "", "Jason": "", "Martin": "", "Lucas": ""}
     url = f"https://api.notion.com/v1/databases/{TEAM_DATABASE_ID}/query"
     payload = {"filter": {"property": "Status", "status": {"equals": "Active"}}}
     try:
@@ -34,7 +41,7 @@ def get_active_recruiters():
     except: return {"Adam": "", "Jason": "", "Lucas": ""}
 
 recruiter_dict = get_active_recruiters()
-recruiter_options = list(recruiter_dict.keys()) + ["Other (Type manually)"]
+recruiter_options = sorted(list(recruiter_dict.keys())) + ["Other (Type manually)"]
 
 # Forma
 with st.form("driver_form", clear_on_submit=True):
@@ -50,24 +57,24 @@ with st.form("driver_form", clear_on_submit=True):
         
     experience = st.number_input("Experience (Years)", min_value=0, max_value=50, value=2)
     miles = st.text_input("Weekly Miles", value="3000+ miles")
-    eld = st.selectbox("ELD Experience", ["Yes (ELD Friendly)", "Negotiable", "No (Paper logs)"])
     
     col3, col4 = st.columns(2)
     with col3:
+        eld = st.selectbox("ELD Experience", ["Yes (ELD Friendly)", "Negotiable", "No (Paper logs)"])
         work_time = st.text_input("Work Time (OTR)", value="3 weeks out")
-        pay = st.text_input("Pay Structure", placeholder="e.g. 65 CPM or 30%")
     with col4:
         home_time = st.text_input("Home Time", value="3-4 days")
-        escrow = st.selectbox("Escrow", ["Agreed", "Needs Negotiation", "Refused"])
+        pay = st.text_input("Pay Structure", placeholder="e.g. 65 CPM or 30%")
         
+    escrow = st.selectbox("Escrow", ["Agreed", "Needs Negotiation", "Refused"])
     location = st.text_input("Location (State)")
     ready = st.text_input("Ready Date", value="ASAP")
     notes = st.text_area("Additional Notes")
 
     st.subheader("📎 Document Uploads")
-    cdl_front = st.file_uploader("CDL Front *", type=["png", "jpg", "jpeg"])
-    cdl_back = st.file_uploader("CDL Back (Optional)", type=["png", "jpg", "jpeg"])
-    med_card = st.file_uploader("Medical Card (Optional)", type=["png", "jpg", "jpeg"])
+    cdl_front = st.file_uploader("CDL Front *", type=["png", "jpg", "jpeg", "pdf"])
+    cdl_back = st.file_uploader("CDL Back (Optional)", type=["png", "jpg", "jpeg", "pdf"])
+    med_card = st.file_uploader("Medical Card (Optional)", type=["png", "jpg", "jpeg", "pdf"])
     extra = st.file_uploader("Extra Docs (Optional - Multiple)", accept_multiple_files=True)
 
     submitted = st.form_submit_button("🚀 PROCESS DRIVER")
@@ -88,7 +95,6 @@ if submitted:
         }
         if recruiter in recruiter_dict:
             notion_payload["properties"]["Recruiter"] = {"relation": [{"id": recruiter_dict[recruiter]}]}
-        
         requests.post("https://api.notion.com/v1/pages", headers=headers, json=notion_payload)
         
         # n8n'ga yuborish
@@ -96,6 +102,9 @@ if submitted:
         files = {"cdl_file": (cdl_front.name, cdl_front.getvalue(), cdl_front.type)}
         if cdl_back: files["cdl_back"] = (cdl_back.name, cdl_back.getvalue(), cdl_back.type)
         if med_card: files["med_card"] = (med_card.name, med_card.getvalue(), med_card.type)
+        if extra:
+            for idx, f in enumerate(extra):
+                files[f"extra_{idx}"] = (f.name, f.getvalue(), f.type)
         
         requests.post(webhook_url, data={"driver_name": driver_name, "recruiter_name": recruiter}, files=files)
         st.success("✅ Driver processed successfully!")
