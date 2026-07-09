@@ -24,7 +24,26 @@ with head_col2:
         st.rerun()
 
 st.markdown("---")
+# ---------------------------------------------------------
+# 🔒 XAVFSIZLIK: DARVOZA PAROLI
+# ---------------------------------------------------------
+APP_PASSWORD = st.secrets.get("PORTAL_PASSWORD", "zaxira_parol_123")
 
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.warning("🔒 909 RA Tizimiga kirish uchun maxfiy parolni kiriting")
+    entered_password = st.text_input("Parol:", type="password")
+    
+    if st.button("Tizimga Kirish"):
+        if entered_password == APP_PASSWORD:
+            st.session_state.authenticated = True
+            st.rerun() # Sahifani qayta yuklaydi va formani ochadi
+        else:
+            st.error("❌ Noto'g'ri parol! Kirish taqiqlanadi.")
+            
+    st.stop() # DIQQAT: Agar parol kiritilmasa, st.stop() orqali pastdagi barcha kodlar (forma) ishlashdan to'xtaydi!
 # ==========================================
 # 2. MAXFIY KALITLAR VA NOTION MANTIG'I
 # ==========================================
