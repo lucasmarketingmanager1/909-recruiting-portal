@@ -99,7 +99,7 @@ st.divider()
 # 3. TELEGRAM ALBOM YUBORISH FUNKSIYASI
 # ==========================================
 def send_album_to_telegram(driver_data, cdl_front, cdl_back, medical_card, extra_files=None):
-    BOT_TOKEN = "8439765212:AAEn79yMkZUAHJu9BNHIeJOicvudLDoIIMg"
+    BOT_TOKEN = st.secrets["TELEGRAM_BOT_TOKEN"]
     CHAT_ID = "-1003900612928"
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup"
 
