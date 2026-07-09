@@ -15,7 +15,7 @@ st.markdown("""
 # Tizim sarlavhasi va Sync tugmasi yonma-yon
 head_col1, head_col2 = st.columns([0.8, 0.2])
 with head_col1:
-    st.title("🚛 909 Recruiting Agency")
+    st.title("🇺🇸 909 Recruiting Agency")
 with head_col2:
     st.write("") # Kichik bo'shliq
     if st.button("🔄 Sync Notion"):
