@@ -1,12 +1,11 @@
 import streamlit as st
 import requests
+import json
 
 # ==========================================
 # 1. SAHIFA SOZLAMALARI VA DIZAYN
 # ==========================================
 st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🦅", layout="centered")
-
-# ... CSS kodlar ...
 
 st.markdown("""
 <style>
@@ -99,7 +98,58 @@ routing_destination = st.radio(
 st.divider()
 
 # ==========================================
-# 3. MUKAMMAL FORMA 
+# 3. TELEGRAM ALBOM YUBORISH FUNKSIYASI (YANGI)
+# ==========================================
+def send_album_to_telegram(driver_data, cdl_front, cdl_back, medical_card):
+    # Diqqat: Tizim ishga tushgach, xavfsizlik uchun bu tokenni BotFather orqali almashtirishni maslahat beraman.
+    BOT_TOKEN = "8439765212:AAEn79yMkZUAHJu9BNHIeJOicvudLDoIIMg"
+    CHAT_ID = "-1003900612928"
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup"
+
+    caption = f"""👤 Name: {driver_data.get('driver_name', 'N/A')}
+📅 Experience: {driver_data.get('experience', 'N/A')}
+📊 Weekly miles: {driver_data.get('weekly_miles', 'N/A')}
+📝 ELD: {driver_data.get('eld_type', 'N/A')}
+⏰ Work time: {driver_data.get('work_time', 'N/A')}
+🏠 Home time: {driver_data.get('home_time', 'N/A')}
+💰 Pay: {driver_data.get('pay_rate', 'N/A')}
+💵 Escrow: {driver_data.get('escrow', 'N/A')}
+🚛 Loads: {driver_data.get('loads', 'N/A')}
+📍 Location: {driver_data.get('location', 'N/A')}
+🚦 Ready: {driver_data.get('ready_date', 'N/A')}
+📞 Agent: {driver_data.get('recruiter_name', 'N/A')}
+📝 Note: {driver_data.get('notes', 'N/A')}"""
+
+    media = []
+    files = {}
+
+    if cdl_front:
+        files["cdl_front"] = ("cdl_front.jpg", cdl_front.getvalue(), "image/jpeg")
+        media.append({"type": "photo", "media": "attach://cdl_front"})
+        
+    if cdl_back:
+        files["cdl_back"] = ("cdl_back.jpg", cdl_back.getvalue(), "image/jpeg")
+        media.append({"type": "photo", "media": "attach://cdl_back"})
+        
+    if medical_card:
+        files["medical_card"] = ("medical_card.jpg", medical_card.getvalue(), "image/jpeg")
+        media.append({"type": "photo", "media": "attach://medical_card"})
+
+    if media:
+        media[0]["caption"] = caption
+
+    if media:
+        data = {
+            "chat_id": CHAT_ID,
+            "media": json.dumps(media)
+        }
+        response = requests.post(url, data=data, files=files)
+        return response.json()
+    else:
+        return {"ok": False, "description": "Hech qanday rasm topilmadi."}
+
+# ==========================================
+# 4. MUKAMMAL FORMA 
 # ==========================================
 with st.form("driver_onboarding_form", clear_on_submit=True):
     
@@ -174,13 +224,13 @@ with st.form("driver_onboarding_form", clear_on_submit=True):
     submitted = st.form_submit_button("🚀 PROCESS DRIVER TO SYSTEM")
 
 # ==========================================
-# 4. EGIZAK YUBORISH MANTIGI (Notion + n8n)
+# 5. EGIZAK YUBORISH MANTIGI (Notion + Telegram + n8n)
 # ==========================================
 if submitted:
     if not driver_name or not phone_number or not cdl_front:
         st.error("❌ ERROR: Driver's Name, Phone Number, and CDL (Front) are mandatory!")
     else:
-        with st.spinner("Encrypting and processing data to Notion & n8n..."):
+        with st.spinner("Encrypting and processing data to all channels..."):
             
             final_ready = ready_custom if (ready_choice == "Custom" and ready_custom.strip()) else ready_choice
             final_agent = agent_custom if (agent_choice == "Other (Type manually)" and agent_custom.strip()) else agent_choice
@@ -195,7 +245,32 @@ if submitted:
                 formatted_pay = f"${pay_amount} / Week"
 
             # ---------------------------------------------------------
-            # BQ-1: NOTION MASTER CRM'GA TO'G'RIDAN-TO'G'RI YOZISH
+            # BQ-1: TELEGRAMGA ALBOM YUBORISH (YANGI QO'SHILDI)
+            # ---------------------------------------------------------
+            driver_data = {
+                "driver_name": driver_name,
+                "experience": f"{experience_yrs} Years",
+                "weekly_miles": weekly_miles,
+                "eld_type": eld_friendly,
+                "work_time": final_work,
+                "home_time": final_home,
+                "pay_rate": formatted_pay,
+                "escrow": escrow,
+                "loads": ", ".join(loads) if loads else "Any",
+                "location": location,
+                "ready_date": final_ready,
+                "recruiter_name": final_agent,
+                "notes": notes
+            }
+            
+            tg_response = send_album_to_telegram(driver_data, cdl_front, cdl_back, medical_card)
+            if tg_response.get("ok"):
+                st.success("✅ Telegram kanaliga albom muvaffaqiyatli yuborildi!")
+            else:
+                st.warning(f"⚠️ Telegram xatosi: {tg_response.get('description')}")
+
+            # ---------------------------------------------------------
+            # BQ-2: NOTION MASTER CRM'GA TO'G'RIDAN-TO'G'RI YOZISH
             # ---------------------------------------------------------
             recruiter_id = recruiter_dict.get(agent_choice, "") if agent_choice != "Other (Type manually)" else ""
             
@@ -221,7 +296,7 @@ if submitted:
                 st.warning(f"⚠️ Notion bilan ulanishda xato: {e}")
 
             # ---------------------------------------------------------
-            # BQ-2: N8N WEBHOOK ORQALI TELEGRAM VA AUTOMATION'GA YUBORISH
+            # BQ-3: N8N WEBHOOK ORQALI QOLGAN JARAYONLAR UCHUN
             # ---------------------------------------------------------
             WEBHOOK_URL = "https://recruiting909.app.n8n.cloud/webhook/b2efcc0b-1001-4936-8847-9a626d3dfe70"
 
