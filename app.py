@@ -4,7 +4,7 @@ import requests
 # ==========================================
 # 1. SAHIFA SOZLAMALARI VA DIZAYN
 # ==========================================
-st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🚛", layout="centered")
+st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🇺🇸", layout="centered")
 
 st.markdown("""
 <style>
