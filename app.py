@@ -12,7 +12,16 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🚛 909 Recruiting Agency | HR Portal")
+# Tizim sarlavhasi va Sync tugmasi yonma-yon
+head_col1, head_col2 = st.columns([0.8, 0.2])
+with head_col1:
+    st.title("🚛 909 Recruiting Agency")
+with head_col2:
+    st.write("") # Kichik bo'shliq
+    if st.button("🔄 Sync Notion"):
+        st.cache_data.clear() # Xotirani tozalash buyrug'i
+        st.rerun()            # Dasturni darhol yangilash
+
 st.markdown("---")
 
 # ==========================================
@@ -28,10 +37,9 @@ headers = {
     "Notion-Version": "2022-06-28"
 }
 
-# Notiondan Active Recruiterlarni tortish (Har 60 soniyada yangilanadi)
 @st.cache_data(ttl=60)
 def get_active_recruiters():
-    fallback = {"Adam": "", "Jason": "", "Martin": "", "Tom": "", "Jacob": "", "Eric": "", "Lucas": ""}
+    fallback = {"Adam": "", "Jason": "", "Martin": "", "Lucas": ""}
     if not TEAM_DATABASE_ID or not NOTION_TOKEN:
         return fallback
         
@@ -44,12 +52,20 @@ def get_active_recruiters():
             results = response.json().get("results", [])
             recruiters = {}
             for page in results:
-                name_list = page["properties"]["Name"]["title"]
-                if name_list:
-                    name = name_list[0]["plain_text"]
-                    role = page["properties"]["Role"]["select"]["name"]
-                    if role == "Recruiter":
-                        recruiters[name] = page["id"]
+                props = page.get("properties", {})
+                
+                # Ismni xavfsiz olish
+                name_list = props.get("Name", {}).get("title", [])
+                if not name_list: continue
+                name = name_list[0].get("plain_text", "")
+                
+                # Rolni xavfsiz olish
+                role_obj = props.get("Role", {}).get("select")
+                role = role_obj.get("name") if role_obj else ""
+                
+                if role == "Recruiter":
+                    recruiters[name] = page["id"]
+                    
             if recruiters:
                 return recruiters
         return fallback
@@ -61,7 +77,6 @@ recruiter_options = list(recruiter_dict.keys())
 recruiter_options.sort()
 recruiter_options.append("Other (Type manually)")
 
-# Shtatlar ro'yxati
 US_STATES = [
     "AL - Alabama", "AR - Arkansas", "AZ - Arizona", "CA - California", "CO - Colorado", "CT - Connecticut", 
     "DE - Delaware", "FL - Florida", "GA - Georgia", "IA - Iowa", "ID - Idaho", "IL - Illinois", 
@@ -74,7 +89,6 @@ US_STATES = [
     "WV - West Virginia", "WY - Wyoming"
 ]
 
-# Tizim yo'nalishini formadan tashqarida (qulaylik uchun) tanlash
 st.markdown("### 🔀 Ma'lumot qayerga yuborilsin?")
 routing_destination = st.radio(
     "Tizimni tanlang:",
@@ -83,7 +97,7 @@ routing_destination = st.radio(
 st.divider()
 
 # ==========================================
-# 3. MUKAMMAL FORMA (clear_on_submit qoidasi bilan)
+# 3. MUKAMMAL FORMA 
 # ==========================================
 with st.form("driver_onboarding_form", clear_on_submit=True):
     
@@ -141,7 +155,7 @@ with st.form("driver_onboarding_form", clear_on_submit=True):
 
     st.markdown("---")
     
-    st.subheader("📂 Document Uploads (Dinamic)")
+    st.subheader("📂 Document Uploads (Dynamic)")
     
     cdl_front = st.file_uploader("Upload CDL (Front) * [Majburiy]", type=['png', 'jpg', 'jpeg', 'pdf'])
     
@@ -166,7 +180,6 @@ if submitted:
     else:
         with st.spinner("Encrypting and processing data to Notion & n8n..."):
             
-            # Dinamik maydonlarni aniqlash
             final_ready = ready_custom if (ready_choice == "Custom" and ready_custom.strip()) else ready_choice
             final_agent = agent_custom if (agent_choice == "Other (Type manually)" and agent_custom.strip()) else agent_choice
             final_work = work_custom if (work_choice == "Custom" and work_custom.strip()) else work_choice
@@ -219,7 +232,7 @@ if submitted:
                 "pay_rate": formatted_pay,
                 "location": location,
                 "ready_date": final_ready,
-                "recruiter_name": final_agent, # TELEGRAM UCHUN TAYYORLANGAN O'ZGARUVCHI
+                "recruiter_name": final_agent, 
                 "loads": ", ".join(loads) if loads else "Any",
                 "weekly_miles": weekly_miles,
                 "eld_type": eld_friendly,
