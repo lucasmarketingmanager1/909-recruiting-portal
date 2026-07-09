@@ -28,7 +28,8 @@ headers = {
     "Notion-Version": "2022-06-28"
 }
 
-@st.cache_data(ttl=300)
+# Notiondan Active Recruiterlarni tortish (Har 60 soniyada yangilanadi)
+@st.cache_data(ttl=60)
 def get_active_recruiters():
     fallback = {"Adam": "", "Jason": "", "Martin": "", "Tom": "", "Jacob": "", "Eric": "", "Lucas": ""}
     if not TEAM_DATABASE_ID or not NOTION_TOKEN:
@@ -60,6 +61,7 @@ recruiter_options = list(recruiter_dict.keys())
 recruiter_options.sort()
 recruiter_options.append("Other (Type manually)")
 
+# Shtatlar ro'yxati
 US_STATES = [
     "AL - Alabama", "AR - Arkansas", "AZ - Arizona", "CA - California", "CO - Colorado", "CT - Connecticut", 
     "DE - Delaware", "FL - Florida", "GA - Georgia", "IA - Iowa", "ID - Idaho", "IL - Illinois", 
@@ -72,8 +74,16 @@ US_STATES = [
     "WV - West Virginia", "WY - Wyoming"
 ]
 
+# Tizim yo'nalishini formadan tashqarida (qulaylik uchun) tanlash
+st.markdown("### 🔀 Ma'lumot qayerga yuborilsin?")
+routing_destination = st.radio(
+    "Tizimni tanlang:",
+    ("🟢 Internal Channel (Contracted Carrier Priority)", "🔵 Public Channel (Open Market)")
+)
+st.divider()
+
 # ==========================================
-# 3. MUKAMMAL FORMA (clear_on_submit qoidasi qo'shildi)
+# 3. MUKAMMAL FORMA (clear_on_submit qoidasi bilan)
 # ==========================================
 with st.form("driver_onboarding_form", clear_on_submit=True):
     
@@ -131,7 +141,7 @@ with st.form("driver_onboarding_form", clear_on_submit=True):
 
     st.markdown("---")
     
-    st.subheader("📂 Document Uploads & Routing")
+    st.subheader("📂 Document Uploads (Dinamic)")
     
     cdl_front = st.file_uploader("Upload CDL (Front) * [Majburiy]", type=['png', 'jpg', 'jpeg', 'pdf'])
     
@@ -141,12 +151,8 @@ with st.form("driver_onboarding_form", clear_on_submit=True):
     with doc_col2:
         medical_card = st.file_uploader("Upload Medical Card [Ixtiyoriy]", type=['png', 'jpg', 'jpeg', 'pdf'])
         
-    extra_files = st.file_uploader("➕ Boshqa qo'shimcha hujjatlar (MVR, SSN, h.k.) [Ixtiyoriy - Bir nechta tanlash mumkin]", type=['png', 'jpg', 'jpeg', 'pdf'], accept_multiple_files=True)
+    extra_files = st.file_uploader("➕ Boshqa qo'shimcha hujjatlar (MVR, SSN, h.k.) [Ixtiyoriy - Cheksiz tanlash mumkin]", type=['png', 'jpg', 'jpeg', 'pdf'], accept_multiple_files=True)
     
-    routing_destination = st.radio(
-        "🎯 Where should this driver be posted?",
-        ["🟢 Internal Channel (Contracted Carrier Priority)", "🔵 Public Channel (Open Market)"]
-    )
     notes = st.text_area("✍️ Additional Notes (MVR issues, preferred routes, etc.)")
 
     submitted = st.form_submit_button("🚀 PROCESS DRIVER TO SYSTEM")
@@ -158,8 +164,9 @@ if submitted:
     if not driver_name or not phone_number or not cdl_front:
         st.error("❌ ERROR: Driver's Name, Phone Number, and CDL (Front) are mandatory!")
     else:
-        with st.spinner("Encrypting and processing data..."):
+        with st.spinner("Encrypting and processing data to Notion & n8n..."):
             
+            # Dinamik maydonlarni aniqlash
             final_ready = ready_custom if (ready_choice == "Custom" and ready_custom.strip()) else ready_choice
             final_agent = agent_custom if (agent_choice == "Other (Type manually)" and agent_custom.strip()) else agent_choice
             final_work = work_custom if (work_choice == "Custom" and work_custom.strip()) else work_choice
@@ -182,7 +189,6 @@ if submitted:
                 "properties": {
                     "Driver Name": {"title": [{"text": {"content": driver_name}}]},
                     "Phone Number": {"phone_number": phone_number},
-                    # XATO BARTARAF ETILDI: Qirqish olib tashlandi, endi to'liq narx va nom boradi
                     "Driver Type": {"select": {"name": driver_type}}, 
                     "Status": {"status": {"name": "Lead"}}
                 }
@@ -213,8 +219,8 @@ if submitted:
                 "pay_rate": formatted_pay,
                 "location": location,
                 "ready_date": final_ready,
-                "agent": final_agent,
-                "loads": ", ".join(loads),
+                "recruiter_name": final_agent, # TELEGRAM UCHUN TAYYORLANGAN O'ZGARUVCHI
+                "loads": ", ".join(loads) if loads else "Any",
                 "weekly_miles": weekly_miles,
                 "eld_type": eld_friendly,
                 "work_time": final_work,
