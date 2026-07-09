@@ -4,7 +4,9 @@ import requests
 # ==========================================
 # 1. SAHIFA SOZLAMALARI VA DIZAYN
 # ==========================================
-st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🇺🇸", layout="centered")
+st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🦅", layout="centered")
+
+# ... CSS kodlar ...
 
 st.markdown("""
 <style>
@@ -15,7 +17,7 @@ st.markdown("""
 # Tizim sarlavhasi va Sync tugmasi yonma-yon
 head_col1, head_col2 = st.columns([0.8, 0.2])
 with head_col1:
-    st.title("🇺🇸 909 Recruiting Agency")
+    st.title("🦅 909 Recruiting Agency | HR Portal")
 with head_col2:
     st.write("") # Kichik bo'shliq
     if st.button("🔄 Sync Notion"):
