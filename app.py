@@ -20,8 +20,8 @@ with head_col1:
 with head_col2:
     st.write("") # Kichik bo'shliq
     if st.button("🔄 Sync Notion"):
-        st.cache_data.clear() # Xotirani tozalash buyrug'i
-        st.rerun()            # Dasturni darhol yangilash
+        st.cache_data.clear()
+        st.rerun()
 
 st.markdown("---")
 
@@ -55,12 +55,10 @@ def get_active_recruiters():
             for page in results:
                 props = page.get("properties", {})
                 
-                # Ismni xavfsiz olish
                 name_list = props.get("Name", {}).get("title", [])
                 if not name_list: continue
                 name = name_list[0].get("plain_text", "")
                 
-                # Rolni xavfsiz olish
                 role_obj = props.get("Role", {}).get("select")
                 role = role_obj.get("name") if role_obj else ""
                 
@@ -98,10 +96,9 @@ routing_destination = st.radio(
 st.divider()
 
 # ==========================================
-# 3. TELEGRAM ALBOM YUBORISH FUNKSIYASI (YANGI)
+# 3. TELEGRAM ALBOM YUBORISH FUNKSIYASI
 # ==========================================
-def send_album_to_telegram(driver_data, cdl_front, cdl_back, medical_card):
-    # Diqqat: Tizim ishga tushgach, xavfsizlik uchun bu tokenni BotFather orqali almashtirishni maslahat beraman.
+def send_album_to_telegram(driver_data, cdl_front, cdl_back, medical_card, extra_files=None):
     BOT_TOKEN = "8439765212:AAEn79yMkZUAHJu9BNHIeJOicvudLDoIIMg"
     CHAT_ID = "-1003900612928"
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMediaGroup"
@@ -124,19 +121,29 @@ def send_album_to_telegram(driver_data, cdl_front, cdl_back, medical_card):
     files = {}
 
     if cdl_front:
-        files["cdl_front"] = ("cdl_front.jpg", cdl_front.getvalue(), "image/jpeg")
+        files["cdl_front"] = (cdl_front.name, cdl_front.getvalue(), "image/jpeg")
         media.append({"type": "photo", "media": "attach://cdl_front"})
         
     if cdl_back:
-        files["cdl_back"] = ("cdl_back.jpg", cdl_back.getvalue(), "image/jpeg")
+        files["cdl_back"] = (cdl_back.name, cdl_back.getvalue(), "image/jpeg")
         media.append({"type": "photo", "media": "attach://cdl_back"})
         
     if medical_card:
-        files["medical_card"] = ("medical_card.jpg", medical_card.getvalue(), "image/jpeg")
+        files["medical_card"] = (medical_card.name, medical_card.getvalue(), "image/jpeg")
         media.append({"type": "photo", "media": "attach://medical_card"})
+
+    if extra_files:
+        for idx, ext_file in enumerate(extra_files):
+            file_key = f"extra_{idx}"
+            media_type = "document" if ext_file.name.lower().endswith('.pdf') else "photo"
+            files[file_key] = (ext_file.name, ext_file.getvalue(), ext_file.type)
+            media.append({"type": media_type, "media": f"attach://{file_key}"})
 
     if media:
         media[0]["caption"] = caption
+        # Telegram limiti 10 ta
+        if len(media) > 10:
+            media = media[:10]
 
     if media:
         data = {
@@ -224,7 +231,7 @@ with st.form("driver_onboarding_form", clear_on_submit=True):
     submitted = st.form_submit_button("🚀 PROCESS DRIVER TO SYSTEM")
 
 # ==========================================
-# 5. EGIZAK YUBORISH MANTIGI (Notion + Telegram + n8n)
+# 5. EGIZAK YUBORISH MANTIGI
 # ==========================================
 if submitted:
     if not driver_name or not phone_number or not cdl_front:
@@ -245,7 +252,7 @@ if submitted:
                 formatted_pay = f"${pay_amount} / Week"
 
             # ---------------------------------------------------------
-            # BQ-1: TELEGRAMGA ALBOM YUBORISH (YANGI QO'SHILDI)
+            # BQ-1: TELEGRAMGA ALBOM YUBORISH
             # ---------------------------------------------------------
             driver_data = {
                 "driver_name": driver_name,
@@ -263,7 +270,7 @@ if submitted:
                 "notes": notes
             }
             
-            tg_response = send_album_to_telegram(driver_data, cdl_front, cdl_back, medical_card)
+            tg_response = send_album_to_telegram(driver_data, cdl_front, cdl_back, medical_card, extra_files)
             if tg_response.get("ok"):
                 st.success("✅ Telegram kanaliga albom muvaffaqiyatli yuborildi!")
             else:
@@ -296,7 +303,7 @@ if submitted:
                 st.warning(f"⚠️ Notion bilan ulanishda xato: {e}")
 
             # ---------------------------------------------------------
-            # BQ-3: N8N WEBHOOK ORQALI QOLGAN JARAYONLAR UCHUN
+            # BQ-3: N8N WEBHOOK
             # ---------------------------------------------------------
             WEBHOOK_URL = "https://recruiting909.app.n8n.cloud/webhook/b2efcc0b-1001-4936-8847-9a626d3dfe70"
 
@@ -334,7 +341,7 @@ if submitted:
             try:
                 response = requests.post(WEBHOOK_URL, data=payload, files=files, timeout=15)
                 if response.status_code == 200:
-                    st.info(f"🚀 Ma'lumotlar n8n markaziga muvaffaqiyatli yetib bordi! Forma yangilandi.")
+                    st.info(f"🚀 Ma'lumotlar n8n markaziga muvaffaqiyatli yetib bordi!")
                 else:
                     st.error(f"⚠️ n8n tizim xatosi: {response.text}")
             except requests.exceptions.Timeout:
