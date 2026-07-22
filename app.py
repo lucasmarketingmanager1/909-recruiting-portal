@@ -5,41 +5,12 @@ import json
 # ==========================================
 # 1. SAHIFA SOZLAMALARI VA DIZAYN
 # ==========================================
-st.markdown(
-    """
+st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🦅", layout="centered")
+st.markdown("""
 <style>
-    .stButton>button { 
-        width: 100%; 
-        border-radius: 5px; 
-        font-weight: bold; 
-        padding: 10px; 
-        background-color: #0b1f3f; 
-        color: white;
-    }
-
-    /* 1. Headerdagi GitHub icon va boshqa havolalarni yashirish (Menu ishlayveradi) */
-    [data-testid="stHeader"] a {
-        display: none !important;
-    }
-    
-    /* 2. Pastdagi Streamlit footer yozuvini yashirish */
-    footer {
-        visibility: hidden !important;
-        display: none !important;
-    }
-    
-    /* 3. Pastki o'ng burchakdagi Streamlit nishoni (badge) va status widget'ni yashirish */
-    .viewerBadge_container, 
-    [data-testid="stStatusWidget"],
-    div[class*="viewerBadge"] {
-        display: none !important;
-        visibility: hidden !important;
-    }
+    .stButton>button { width: 100%; border-radius: 5px; font-weight: bold; padding: 10px; background-color: #0b1f3f; color: white;}
 </style>
-""",
-    unsafe_allow_html=True,
-)
-
+""", unsafe_allow_html=True)
 # ---------------------------------------------------------
 # 🔒 XAVFSIZLIK: DARVOZA PAROLI
 # ---------------------------------------------------------
