@@ -17,22 +17,23 @@ st.markdown(
         color: white;
     }
 
-    /* 1. Dark/Light mode menyusi turishi uchun header'ni o'chirmaymiz, 
-       lekin GitHub / Deploy tugmasini yashiramiz */
-    [data-testid="stDeployButton"] {
+    /* 1. Headerdagi GitHub icon va boshqa havolalarni yashirish (Menu ishlayveradi) */
+    [data-testid="stHeader"] a {
         display: none !important;
     }
-
+    
     /* 2. Pastdagi Streamlit footer yozuvini yashirish */
     footer {
-        visibility: hidden;
-        display: none;
-    }
-
-    /* 3. Pastki o'ng burchakdagi Streamlit nishonini (badge) yashirish */
-    #MainMenu {visibility: visible;} /* Menyuni ochiq qoldiramiz */
-    .viewerBadge_container {
+        visibility: hidden !important;
         display: none !important;
+    }
+    
+    /* 3. Pastki o'ng burchakdagi Streamlit nishoni (badge) va status widget'ni yashirish */
+    .viewerBadge_container, 
+    [data-testid="stStatusWidget"],
+    div[class*="viewerBadge"] {
+        display: none !important;
+        visibility: hidden !important;
     }
 </style>
 """,
