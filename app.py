@@ -5,13 +5,22 @@ import json
 # ==========================================
 # 1. SAHIFA SOZLAMALARI VA DIZAYN
 # ==========================================
-st.set_page_config(page_title="909 RA | Recruitment Portal", page_icon="🦅", layout="centered")
+st.set_page_config(
+    page_title="909 RA | Recruitment Portal", page_icon="🦅", layout="centered"
+)
 
-st.markdown("""
+st.markdown(
+    """
 <style>
     .stButton>button { width: 100%; border-radius: 5px; font-weight: bold; padding: 10px; background-color: #0b1f3f; color: white;}
+    /* GitHub icon, Header va Menyuni yashirish */
+    [data-testid="stHeader"] {display: none;}
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
 </style>
-""", unsafe_allow_html=True)
+""",
+    unsafe_allow_html=True,
+)
 
 # ---------------------------------------------------------
 # 🔒 XAVFSIZLIK: DARVOZA PAROLI
