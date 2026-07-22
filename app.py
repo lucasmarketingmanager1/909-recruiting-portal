@@ -5,18 +5,35 @@ import json
 # ==========================================
 # 1. SAHIFA SOZLAMALARI VA DIZAYN
 # ==========================================
-st.set_page_config(
-    page_title="909 RA | Recruitment Portal", page_icon="🦅", layout="centered"
-)
-
 st.markdown(
     """
 <style>
-    .stButton>button { width: 100%; border-radius: 5px; font-weight: bold; padding: 10px; background-color: #0b1f3f; color: white;}
-    /* GitHub icon, Header va Menyuni yashirish */
-    [data-testid="stHeader"] {display: none;}
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
+    .stButton>button { 
+        width: 100%; 
+        border-radius: 5px; 
+        font-weight: bold; 
+        padding: 10px; 
+        background-color: #0b1f3f; 
+        color: white;
+    }
+
+    /* 1. Dark/Light mode menyusi turishi uchun header'ni o'chirmaymiz, 
+       lekin GitHub / Deploy tugmasini yashiramiz */
+    [data-testid="stDeployButton"] {
+        display: none !important;
+    }
+
+    /* 2. Pastdagi Streamlit footer yozuvini yashirish */
+    footer {
+        visibility: hidden;
+        display: none;
+    }
+
+    /* 3. Pastki o'ng burchakdagi Streamlit nishonini (badge) yashirish */
+    #MainMenu {visibility: visible;} /* Menyuni ochiq qoldiramiz */
+    .viewerBadge_container {
+        display: none !important;
+    }
 </style>
 """,
     unsafe_allow_html=True,
